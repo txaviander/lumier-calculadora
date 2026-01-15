@@ -86,6 +86,76 @@ const calculateBenefitForQuality = (qualityLevel: number, params: any, precioVen
   return ventaNeta - inversionTotal
 }
 
+// Calcular precio maximo de compra para un margen objetivo
+const calculateMaxPurchasePrice = (params: {
+  m2Construidos: number
+  precioVenta: number
+  calidad: number
+  intermediacionCompra: boolean
+  porcentajeIntermediacionCompra: number
+  intermediacionVenta: boolean
+  porcentajeIntermediacionVenta: number
+  esClasico: boolean
+  terrazaM2: number
+  toldoPergola: boolean
+  deuda: number
+  interesFinanciero: number
+}, targetMargin: number) => {
+  // Para un margen objetivo, necesitamos:
+  // Beneficio = Margen * PrecioVenta
+  // Beneficio = VentaNeta - InversionTotal
+  // VentaNeta = PrecioVenta - HonorariosVenta
+  // InversionTotal = PrecioCompra + Gastos + ...
+
+  const precioVenta = params.precioVenta
+  const comisionVentaConIva = params.intermediacionVenta ? (params.porcentajeIntermediacionVenta / 100) * 1.21 : 0
+  const honorariosVenta = precioVenta * comisionVentaConIva
+  const ventaNeta = precioVenta - honorariosVenta
+  const plusvalia = precioVenta * 0.0027
+
+  // Beneficio necesario para el margen
+  const beneficioNecesario = precioVenta * (targetMargin / 100)
+
+  // Inversion maxima permitida
+  const inversionMaxima = ventaNeta - beneficioNecesario
+
+  // Costes fijos (no dependen del precio de compra)
+  const costeObraBase: Record<number, number> = { 1: 350, 2: 420, 3: 560, 4: 700, 5: 900 }
+  const obra = params.m2Construidos * (costeObraBase[params.calidad] || 560)
+  const costeCalidadBase: Record<number, number> = { 1: 300, 2: 400, 3: 512, 4: 650, 5: 850 }
+  const calidadCoste = params.m2Construidos * (costeCalidadBase[params.calidad] || 512)
+  const costeInteriorismoBase: Record<number, number> = { 1: 40, 2: 50, 3: 59.1, 4: 75, 5: 95 }
+  const interiorismo = params.m2Construidos * (costeInteriorismoBase[params.calidad] || 59.1) + (params.esClasico ? 790 : 0)
+  const costeMobiliarioBase: Record<number, number> = { 1: 60, 2: 80, 3: 101.7, 4: 130, 5: 170 }
+  const mobiliario = params.m2Construidos * (costeMobiliarioBase[params.calidad] || 101.7)
+  const terrazaCost = params.terrazaM2 > 0 ? params.terrazaM2 * 36.5 : 0
+  const toldoCost = params.toldoPergola ? 2500 : 0
+  const hardCosts = obra + calidadCoste + interiorismo + mobiliario + terrazaCost + toldoCost
+
+  const costeArquitecturaBase: Record<number, number> = { 1: 25, 2: 32, 3: 38.3, 4: 48, 5: 60 }
+  const arquitectura = params.m2Construidos * (costeArquitecturaBase[params.calidad] || 38.3)
+  const permisoConstruccion = params.m2Construidos * 34.2
+  const gastosVenta = 800
+  const costosTenencia = 2490
+  const softCosts = arquitectura + permisoConstruccion + gastosVenta + costosTenencia + plusvalia
+  const totalGastos = hardCosts + softCosts
+
+  const interesProyecto = params.deuda * (params.interesFinanciero / 100) / 2
+
+  // InversionTotal = PrecioCompra * (1 + comisionCompra + ITP) + inscripcion + gastos + intereses
+  // PrecioCompra * (1 + factores) = InversionMaxima - gastosNoCompra
+  const comisionCompraConIva = params.intermediacionCompra ? (params.porcentajeIntermediacionCompra / 100) * 1.21 : 0
+  const factorITP = 0.02
+  const inscripcion = 1530
+
+  const gastosNoCompra = inscripcion + totalGastos + interesProyecto
+  const factorCompra = 1 + comisionCompraConIva + factorITP
+
+  const precioCompraMaximo = (inversionMaxima - gastosNoCompra) / factorCompra
+
+  return Math.max(0, precioCompraMaximo)
+}
+
 // Valores por defecto
 const getDefaultFechaCompra = () => {
   const today = new Date()
@@ -157,6 +227,9 @@ function CalculatorContent() {
   const [showVersionSelector, setShowVersionSelector] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [nuevoComentario, setNuevoComentario] = useState('')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [precioVentaSugerido, setPrecioVentaSugerido] = useState(false)
+  const [headerCollapsed, setHeaderCollapsed] = useState(false)
 
   // Cargar proyecto y versiones
   useEffect(() => {
@@ -181,7 +254,17 @@ function CalculatorContent() {
         if (activeVersion) {
           setActiveVersionData(activeVersion)
           // Merge con defaults para campos que puedan faltar
-          setData({ ...defaultCalculatorData, ...activeVersion.data })
+          const mergedData = { ...defaultCalculatorData, ...activeVersion.data }
+          // Auto-rellenar direccion con nombre del proyecto si esta vacia
+          if (!mergedData.direccion && projectData.name) {
+            mergedData.direccion = projectData.name
+          }
+          setData(mergedData)
+        } else {
+          // Si no hay version activa, auto-rellenar direccion con nombre del proyecto
+          if (projectData.name) {
+            setData(prev => ({ ...prev, direccion: projectData.name }))
+          }
         }
       } catch (error) {
         console.error('Error loading project:', error)
@@ -195,9 +278,30 @@ function CalculatorContent() {
 
   // Detectar cambios
   const updateField = useCallback(<K extends keyof CalculatorData>(field: K, value: CalculatorData[K]) => {
-    setData(prev => ({ ...prev, [field]: value }))
+    setData(prev => {
+      const newData = { ...prev, [field]: value }
+
+      // Auto-rellenar direccion con titulo del proyecto cuando se cambia el nombre
+      // (esto aplica cuando se crea un proyecto nuevo)
+
+      // Sugerir precio de venta automaticamente cuando cambia precio de compra
+      if (field === 'precioCompra' && typeof value === 'number' && value > 0) {
+        const sugerido = Math.round(value * 1.6 / 1000) * 1000 // +60% redondeado a miles
+        if (!prev.precioVenta || prev.precioVenta === 0 || precioVentaSugerido) {
+          newData.precioVenta = sugerido
+          setPrecioVentaSugerido(true)
+        }
+      }
+
+      // Cuando el usuario edita manualmente el precio de venta, desactivar sugerencia
+      if (field === 'precioVenta') {
+        setPrecioVentaSugerido(false)
+      }
+
+      return newData
+    })
     setHasChanges(true)
-  }, [])
+  }, [precioVentaSugerido])
 
   // Guardar nueva version
   async function handleSaveVersion(e: React.FormEvent) {
@@ -377,66 +481,114 @@ function CalculatorContent() {
 
   const projectTitle = `Analisis Proyecto: ${data.direccion || project?.name} - ${data.planta}`
 
+  // Calcular precio maximo de compra para 13% de margen
+  const precioCompraMaximo13 = useMemo(() => {
+    return calculateMaxPurchasePrice({
+      m2Construidos: data.m2Construidos,
+      precioVenta: data.precioVenta,
+      calidad: data.calidad,
+      intermediacionCompra: data.intermediacionCompra,
+      porcentajeIntermediacionCompra: data.porcentajeIntermediacionCompra,
+      intermediacionVenta: data.intermediacionVenta,
+      porcentajeIntermediacionVenta: data.porcentajeIntermediacionVenta,
+      esClasico: data.esClasico,
+      terrazaM2: data.terrazaM2,
+      toldoPergola: data.toldoPergola,
+      deuda: data.deuda,
+      interesFinanciero: data.interesFinanciero
+    }, 13)
+  }, [data])
+
   return (
     <div className="min-h-screen pb-12">
-      {/* Header sticky con metricas */}
-      <div className="bg-lumier-black text-white py-4 px-8 sticky top-0 z-50 no-print">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="text-xl font-bold text-white">{projectTitle}</h1>
-              <div className="text-sm opacity-80">{data.ciudad} | {calculations.m2Totales} m2 totales</div>
-            </div>
-            <svg viewBox="0 0 280 60" className="h-12" style={{width: 'auto'}}>
-              <defs>
-                <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" style={{stopColor: '#d4af37'}} />
-                  <stop offset="50%" style={{stopColor: '#f4e4bc'}} />
-                  <stop offset="100%" style={{stopColor: '#d4af37'}} />
-                </linearGradient>
-              </defs>
-              <text x="140" y="32" textAnchor="middle" fill="white" style={{fontFamily: "'Playfair Display', Georgia, serif", fontSize: '32px', fontWeight: 600, letterSpacing: '0.2em'}}>LUMIER</text>
-              <line x1="40" y1="42" x2="120" y2="42" stroke="url(#goldGradient)" strokeWidth="1" />
-              <line x1="160" y1="42" x2="240" y2="42" stroke="url(#goldGradient)" strokeWidth="1" />
-              <text x="140" y="54" textAnchor="middle" fill="white" style={{fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 300, letterSpacing: '0.35em', opacity: 0.9}}>CASAS BOUTIQUE</text>
+      {/* Header sticky con metricas - colapsable en mobile */}
+      <div className="bg-lumier-black text-white sticky top-0 z-50 no-print">
+        {/* Barra superior con boton volver y colapsar */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white border-opacity-20">
+          <a href="/" className="flex items-center gap-2 text-white hover:text-lumier-gold transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-4 pt-3 border-t border-white border-opacity-30">
-            <div>
-              <div className="text-xs opacity-70">Precio Compra</div>
-              <div className="font-semibold">{formatCurrency(data.precioCompra)}</div>
-              <div className="text-xs opacity-70">{formatCurrency(data.precioCompra / calculations.m2Totales)}/m2</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">Precio Venta</div>
-              <div className="font-semibold">{formatCurrency(data.precioVenta)}</div>
-              <div className="text-xs opacity-70">{formatCurrency(data.precioVenta / calculations.m2Totales)}/m2</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">Inversion Total</div>
-              <div className="font-semibold">{formatCurrency(calculations.inversionTotal)}</div>
-              <div className="text-xs opacity-70">{formatCurrency(calculations.euroM2Inversion)}/m2</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">ROI</div>
-              <div className="text-2xl font-bold">{formatPercent(calculations.roi)}</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">Margen</div>
-              <div className="text-2xl font-bold">{formatPercent(calculations.margen)}</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">TIR Anual</div>
-              <div className={`text-2xl font-bold ${calculations.tir >= 30 ? "text-green-400" : calculations.tir >= 20 ? "text-yellow-400" : "text-red-400"}`}>{formatPercent(calculations.tir)}</div>
-              <div className="text-xs opacity-70">{calculations.mesesProyecto.toFixed(1)} meses ({calculations.diasProyecto} dias)</div>
-            </div>
-            <div className={`rounded-lg p-2 -my-1 ${calculations.margen >= 16 ? "bg-green-600" : calculations.margen >= 13 ? "bg-orange-500" : "bg-red-600"}`}>
-              <div className="text-xs opacity-90">Beneficio Neto</div>
-              <div className="text-2xl font-extrabold">{formatCurrency(calculations.beneficioNeto)}</div>
-              <div className="text-xs font-semibold">{calculations.margen >= 16 ? "OPORTUNIDAD" : calculations.margen >= 13 ? "AJUSTADO" : "NO HACER"}</div>
+            <span className="text-sm font-medium hidden sm:inline">Volver a proyectos</span>
+          </a>
+          <button
+            onClick={() => setHeaderCollapsed(!headerCollapsed)}
+            className="lg:hidden flex items-center gap-1 text-xs text-white/70 hover:text-white px-2 py-1 rounded bg-white/10"
+          >
+            <svg className={`w-4 h-4 transition-transform ${headerCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+            </svg>
+            {headerCollapsed ? 'Expandir' : 'Colapsar'}
+          </button>
+          <svg viewBox="0 0 280 60" className="h-8 hidden sm:block" style={{width: 'auto'}}>
+            <defs>
+              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style={{stopColor: '#d4af37'}} />
+                <stop offset="50%" style={{stopColor: '#f4e4bc'}} />
+                <stop offset="100%" style={{stopColor: '#d4af37'}} />
+              </linearGradient>
+            </defs>
+            <text x="140" y="28" textAnchor="middle" fill="white" style={{fontFamily: "'Playfair Display', Georgia, serif", fontSize: '28px', fontWeight: 600, letterSpacing: '0.2em'}}>LUMIER</text>
+            <text x="140" y="45" textAnchor="middle" fill="white" style={{fontFamily: "'Inter', sans-serif", fontSize: '8px', fontWeight: 300, letterSpacing: '0.35em', opacity: 0.9}}>CASAS BOUTIQUE</text>
+          </svg>
+        </div>
+
+        {/* Contenido colapsable del header */}
+        <div className={`transition-all duration-300 overflow-hidden ${headerCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
+          <div className="px-4 sm:px-8 py-4">
+            <div className="max-w-7xl mx-auto">
+              <div className="mb-3">
+                <h1 className="text-lg sm:text-xl font-bold text-white">{projectTitle}</h1>
+                <div className="text-sm opacity-80">{data.ciudad} | {calculations.m2Totales} m2 totales</div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 pt-3 border-t border-white border-opacity-30">
+                <div>
+                  <div className="text-xs opacity-70">Precio Compra</div>
+                  <div className="font-semibold text-sm sm:text-base">{formatCurrency(data.precioCompra)}</div>
+                  <div className="text-xs opacity-70 hidden sm:block">{formatCurrency(data.precioCompra / calculations.m2Totales)}/m2</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70">Precio Venta</div>
+                  <div className="font-semibold text-sm sm:text-base">{formatCurrency(data.precioVenta)}</div>
+                  <div className="text-xs opacity-70 hidden sm:block">{formatCurrency(data.precioVenta / calculations.m2Totales)}/m2</div>
+                </div>
+                <div className="hidden sm:block">
+                  <div className="text-xs opacity-70">Inversion Total</div>
+                  <div className="font-semibold">{formatCurrency(calculations.inversionTotal)}</div>
+                  <div className="text-xs opacity-70">{formatCurrency(calculations.euroM2Inversion)}/m2</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70">ROI</div>
+                  <div className="text-xl sm:text-2xl font-bold">{formatPercent(calculations.roi)}</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70">Margen</div>
+                  <div className="text-xl sm:text-2xl font-bold">{formatPercent(calculations.margen)}</div>
+                </div>
+                <div className="hidden lg:block">
+                  <div className="text-xs opacity-70">TIR Anual</div>
+                  <div className={`text-2xl font-bold ${calculations.tir >= 30 ? "text-green-400" : calculations.tir >= 20 ? "text-yellow-400" : "text-red-400"}`}>{formatPercent(calculations.tir)}</div>
+                  <div className="text-xs opacity-70">{calculations.mesesProyecto.toFixed(1)} meses</div>
+                </div>
+                <div className={`rounded-lg p-2 -my-1 col-span-2 sm:col-span-1 ${calculations.margen >= 16 ? "bg-green-600" : calculations.margen >= 13 ? "bg-orange-500" : "bg-red-600"}`}>
+                  <div className="text-xs opacity-90">Beneficio Neto</div>
+                  <div className="text-xl sm:text-2xl font-extrabold">{formatCurrency(calculations.beneficioNeto)}</div>
+                  <div className="text-xs font-semibold">{calculations.margen >= 16 ? "OPORTUNIDAD" : calculations.margen >= 13 ? "AJUSTADO" : "NO HACER"}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Mini header cuando esta colapsado (solo mobile) */}
+        {headerCollapsed && (
+          <div className="lg:hidden px-4 py-2 flex items-center justify-between text-sm">
+            <span className="font-medium truncate flex-1">{data.direccion || project?.name}</span>
+            <div className={`px-2 py-1 rounded text-xs font-bold ${calculations.margen >= 16 ? "bg-green-600" : calculations.margen >= 13 ? "bg-orange-500" : "bg-red-600"}`}>
+              {formatCurrency(calculations.beneficioNeto)} ({formatPercent(calculations.margen)})
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Barra de Versiones */}
@@ -634,32 +786,142 @@ function CalculatorContent() {
             <CollapsibleSection title="P&L Detallado" color="bg-rose-500" defaultOpen={true}>
               <div className="space-y-1">
                 <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">Adquisicion</div>
-                <SummaryRow label="Compra de piso" value={formatCurrency(data.precioCompra)} />
-                <SummaryRow label="Honorario compra" value={formatCurrency(calculations.honorarioCompra)} indent />
-                <SummaryRow label="Inscripcion escritura" value={formatCurrency(calculations.inscripcionEscritura)} indent />
-                <SummaryRow label="ITP" value={formatCurrency(calculations.itp)} indent />
-                <SummaryRow label="Total Adquisicion" value={formatCurrency(calculations.totalAdquisicion)} highlight />
+                <SummaryRow
+                  label="Compra de piso"
+                  value={formatCurrency(data.precioCompra)}
+                  tooltip="Precio de compra del inmueble"
+                  editable
+                  onEdit={(v) => updateField('precioCompra', v)}
+                />
+                <SummaryRow
+                  label="Honorario compra"
+                  value={formatCurrency(calculations.honorarioCompra)}
+                  indent
+                  tooltip={`Precio Compra × ${data.porcentajeIntermediacionCompra}% × 1.21 (IVA)\n= ${formatCurrency(data.precioCompra)} × ${data.porcentajeIntermediacionCompra/100} × 1.21`}
+                />
+                <SummaryRow
+                  label="Inscripcion escritura"
+                  value={formatCurrency(calculations.inscripcionEscritura)}
+                  indent
+                  tooltip="Coste fijo de inscripcion = 1.530 EUR"
+                />
+                <SummaryRow
+                  label="ITP"
+                  value={formatCurrency(calculations.itp)}
+                  indent
+                  tooltip={`Impuesto Transmisiones Patrimoniales\n= Precio Compra × 2%\n= ${formatCurrency(data.precioCompra)} × 0.02`}
+                />
+                <SummaryRow
+                  label="Total Adquisicion"
+                  value={formatCurrency(calculations.totalAdquisicion)}
+                  highlight
+                  tooltip="Compra + Honorarios + Inscripcion + ITP"
+                />
               </div>
               <div className="border-t pt-3 mt-3 space-y-1">
                 <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">Gastos</div>
-                <SummaryRow label="Hard Costs" value={formatCurrency(calculations.hardCosts)} />
-                <SummaryRow label="Obra" value={formatCurrency(calculations.obra)} indent />
-                <SummaryRow label="Calidad materiales" value={formatCurrency(calculations.calidadCoste)} indent />
-                <SummaryRow label="Interiorismo" value={formatCurrency(calculations.interiorismo)} indent />
-                <SummaryRow label="Mobiliario" value={formatCurrency(calculations.mobiliario)} indent />
-                {calculations.extras > 0 && <SummaryRow label="Extras" value={formatCurrency(calculations.extras)} indent />}
-                <SummaryRow label="Soft Costs" value={formatCurrency(calculations.softCosts)} />
-                <SummaryRow label="Arquitectura" value={formatCurrency(calculations.arquitectura)} indent />
-                <SummaryRow label="Permiso construccion" value={formatCurrency(calculations.permisoConstruccion)} indent />
-                <SummaryRow label="Costos tenencia" value={formatCurrency(calculations.costosTenencia)} indent />
-                <SummaryRow label="Plusvalia" value={formatCurrency(calculations.plusvalia)} indent />
-                <SummaryRow label="Total Gastos" value={formatCurrency(calculations.totalGastos)} highlight />
+                <SummaryRow
+                  label="Hard Costs"
+                  value={formatCurrency(calculations.hardCosts)}
+                  tooltip="Obra + Materiales + Interiorismo + Mobiliario + Terraza + Extras"
+                />
+                <SummaryRow
+                  label="Obra"
+                  value={formatCurrency(calculations.obra)}
+                  indent
+                  tooltip={`m2 Construidos × Coste/m2 segun calidad\n= ${data.m2Construidos} m2 × ${[350,420,560,700,900][data.calidad-1]} EUR/m2`}
+                  editable
+                  onEdit={(v) => {
+                    // Calcular el nuevo coste por m2 equivalente
+                    const newCalidad = Math.round(v / data.m2Construidos)
+                    // No permite edicion directa de obra, solo informativo
+                  }}
+                />
+                <SummaryRow
+                  label="Calidad materiales"
+                  value={formatCurrency(calculations.calidadCoste)}
+                  indent
+                  tooltip={`m2 Construidos × Coste materiales/m2\n= ${data.m2Construidos} m2 × ${[300,400,512,650,850][data.calidad-1]} EUR/m2`}
+                />
+                <SummaryRow
+                  label="Interiorismo"
+                  value={formatCurrency(calculations.interiorismo)}
+                  indent
+                  tooltip={`m2 × Coste interiorismo/m2${data.esClasico ? ' + 790 EUR (estilo clasico)' : ''}\n= ${data.m2Construidos} × ${[40,50,59.1,75,95][data.calidad-1]}${data.esClasico ? ' + 790' : ''}`}
+                />
+                <SummaryRow
+                  label="Mobiliario"
+                  value={formatCurrency(calculations.mobiliario)}
+                  indent
+                  tooltip={`m2 × Coste mobiliario/m2\n= ${data.m2Construidos} × ${[60,80,101.7,130,170][data.calidad-1]} EUR/m2`}
+                />
+                {calculations.extras > 0 && (
+                  <SummaryRow
+                    label="Extras"
+                    value={formatCurrency(calculations.extras)}
+                    indent
+                    tooltip="Costes adicionales personalizados"
+                    editable
+                    onEdit={(v) => updateField('extras', v)}
+                  />
+                )}
+                <SummaryRow
+                  label="Soft Costs"
+                  value={formatCurrency(calculations.softCosts)}
+                  tooltip="Arquitectura + Permisos + Gastos venta + Tenencia + Plusvalia"
+                />
+                <SummaryRow
+                  label="Arquitectura"
+                  value={formatCurrency(calculations.arquitectura)}
+                  indent
+                  tooltip={`m2 × Coste arquitectura/m2\n= ${data.m2Construidos} × ${[25,32,38.3,48,60][data.calidad-1]} EUR/m2`}
+                />
+                <SummaryRow
+                  label="Permiso construccion"
+                  value={formatCurrency(calculations.permisoConstruccion)}
+                  indent
+                  tooltip={`m2 × 34.2 EUR/m2\n= ${data.m2Construidos} × 34.2`}
+                />
+                <SummaryRow
+                  label="Costos tenencia"
+                  value={formatCurrency(calculations.costosTenencia)}
+                  indent
+                  tooltip="Coste fijo = 2.490 EUR\n(IBI, comunidad, seguros durante obra)"
+                />
+                <SummaryRow
+                  label="Plusvalia"
+                  value={formatCurrency(calculations.plusvalia)}
+                  indent
+                  tooltip={`Precio Venta × 0.27%\n= ${formatCurrency(data.precioVenta)} × 0.0027`}
+                />
+                <SummaryRow
+                  label="Total Gastos"
+                  value={formatCurrency(calculations.totalGastos)}
+                  highlight
+                  tooltip="Hard Costs + Soft Costs"
+                />
               </div>
               <div className="border-t pt-3 mt-3 space-y-1">
                 <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">Venta</div>
-                <SummaryRow label="Precio de venta" value={formatCurrency(data.precioVenta)} />
-                <SummaryRow label="Honorarios venta" value={`-${formatCurrency(calculations.honorariosVenta)}`} indent />
-                <SummaryRow label="Venta Neta" value={formatCurrency(calculations.ventaNeta)} highlight />
+                <SummaryRow
+                  label="Precio de venta"
+                  value={formatCurrency(data.precioVenta)}
+                  tooltip="Precio de venta esperado del inmueble reformado"
+                  editable
+                  onEdit={(v) => updateField('precioVenta', v)}
+                />
+                <SummaryRow
+                  label="Honorarios venta"
+                  value={`-${formatCurrency(calculations.honorariosVenta)}`}
+                  indent
+                  tooltip={`Precio Venta × ${data.porcentajeIntermediacionVenta}% × 1.21 (IVA)\n= ${formatCurrency(data.precioVenta)} × ${data.porcentajeIntermediacionVenta/100} × 1.21`}
+                />
+                <SummaryRow
+                  label="Venta Neta"
+                  value={formatCurrency(calculations.ventaNeta)}
+                  highlight
+                  tooltip="Precio Venta - Honorarios Venta"
+                />
               </div>
             </CollapsibleSection>
 
@@ -670,6 +932,42 @@ function CalculatorContent() {
                 <div className="flex justify-between"><span className="text-gray-600">Inversion Total</span><span className="font-medium">{formatCurrency(calculations.euroM2Inversion)}/m2</span></div>
                 <div className="flex justify-between"><span className="text-gray-600">Venta</span><span className="font-medium">{formatCurrency(calculations.euroM2Venta)}/m2</span></div>
                 <div className="flex justify-between border-t pt-2"><span className="text-gray-600">Beneficio</span><span className={`font-medium ${calculations.beneficioNeto >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(calculations.beneficioNeto / calculations.m2Totales)}/m2</span></div>
+              </div>
+            </div>
+
+            {/* Cuadro Precio Maximo de Compra para 13% */}
+            <div className={`rounded-xl card-shadow p-4 ${data.precioCompra <= precioCompraMaximo13 ? 'bg-green-50 border-2 border-green-400' : 'bg-red-50 border-2 border-red-400'}`}>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                <svg className={`w-5 h-5 ${data.precioCompra <= precioCompraMaximo13 ? 'text-green-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Precio Maximo de Compra
+              </h3>
+              <div className="text-xs text-gray-600 mb-3">
+                Para alcanzar un <span className="font-semibold">margen minimo del 13%</span>
+              </div>
+              <div className={`text-2xl font-bold ${data.precioCompra <= precioCompraMaximo13 ? 'text-green-700' : 'text-red-700'}`}>
+                {formatCurrency(precioCompraMaximo13)}
+              </div>
+              <div className="mt-2 text-sm">
+                {data.precioCompra <= precioCompraMaximo13 ? (
+                  <div className="text-green-700 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Precio actual OK ({formatCurrency(precioCompraMaximo13 - data.precioCompra)} de margen)
+                  </div>
+                ) : (
+                  <div className="text-red-700 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Exceso: {formatCurrency(data.precioCompra - precioCompraMaximo13)}
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-500">
+                Con PV: {formatCurrency(data.precioVenta)} y calidad {data.calidad}★
               </div>
             </div>
           </div>
@@ -832,11 +1130,82 @@ function NumberField({ label, value, onChange, suffix = '', className = '', step
   )
 }
 
-function SummaryRow({ label, value, highlight = false, indent = false }: { label: string; value: string; highlight?: boolean; indent?: boolean }) {
+function SummaryRow({ label, value, highlight = false, indent = false, tooltip, editable, onEdit }: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  indent?: boolean;
+  tooltip?: string;
+  editable?: boolean;
+  onEdit?: (newValue: number) => void;
+}) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState('')
+
+  const handleStartEdit = () => {
+    if (!editable || !onEdit) return
+    const numValue = parseInt(value.replace(/[^\d-]/g, '')) || 0
+    setEditValue(String(Math.abs(numValue)))
+    setIsEditing(true)
+  }
+
+  const handleSaveEdit = () => {
+    if (onEdit) {
+      const newValue = parseInt(editValue.replace(/[^\d]/g, '')) || 0
+      onEdit(newValue)
+    }
+    setIsEditing(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSaveEdit()
+    if (e.key === 'Escape') setIsEditing(false)
+  }
+
   return (
-    <div className={`flex justify-between py-1.5 ${highlight ? "font-semibold text-base" : "text-sm"} ${indent ? "pl-4" : ""}`}>
-      <span className={highlight ? "text-gray-800" : "text-gray-600"}>{label}</span>
-      <span className={highlight ? "text-blue-600" : "text-gray-800"}>{value}</span>
+    <div
+      className={`flex justify-between py-1.5 ${highlight ? "font-semibold text-base" : "text-sm"} ${indent ? "pl-4" : ""} ${tooltip ? "cursor-help" : ""} ${editable ? "hover:bg-blue-50 rounded px-1 -mx-1 cursor-pointer" : ""} relative group`}
+      onMouseEnter={() => tooltip && setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      onClick={handleStartEdit}
+    >
+      <span className={`${highlight ? "text-gray-800" : "text-gray-600"} flex items-center gap-1`}>
+        {label}
+        {tooltip && (
+          <svg className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {editable && (
+          <svg className="w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+        )}
+      </span>
+      {isEditing ? (
+        <input
+          type="text"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={handleSaveEdit}
+          onKeyDown={handleKeyDown}
+          className="w-24 text-right px-1 py-0 border border-blue-400 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          autoFocus
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <span className={highlight ? "text-blue-600" : "text-gray-800"}>{value}</span>
+      )}
+
+      {/* Tooltip */}
+      {showTooltip && tooltip && (
+        <div className="absolute z-50 bottom-full left-0 mb-2 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg max-w-xs whitespace-pre-line">
+          <div className="font-semibold mb-1 text-yellow-400">Formula:</div>
+          {tooltip}
+          <div className="absolute bottom-0 left-4 transform translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+        </div>
+      )}
     </div>
   )
 }
@@ -851,8 +1220,10 @@ function SensitivityAnalysis({ params, currentQuality, precioVenta }: { params: 
       const beneficioConMargenObjetivo = calculateBenefitForQuality(q, params, requiredPriceCustom)
       return {
         ...calc,
+        requiredPrice13: calculateRequiredSalePrice(calc.inversionBase, 13, params.intermediacionVenta, params.porcentajeIntermediacionVenta),
         requiredPrice15: calculateRequiredSalePrice(calc.inversionBase, 15, params.intermediacionVenta, params.porcentajeIntermediacionVenta),
         requiredPrice20: calculateRequiredSalePrice(calc.inversionBase, 20, params.intermediacionVenta, params.porcentajeIntermediacionVenta),
+        requiredPriceCustom,
         beneficioEsperado: beneficioConMargenObjetivo,
       }
     })
@@ -864,10 +1235,15 @@ function SensitivityAnalysis({ params, currentQuality, precioVenta }: { params: 
         <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
         Analisis de Sensibilidad: Precio de Venta por Calidad
       </h3>
-      <div className="mb-4 flex items-center gap-4 no-print">
-        <span className="text-sm text-gray-600">Margen objetivo:</span>
-        <input type="range" min="5" max="30" value={targetMargin} onChange={(e) => setTargetMargin(parseInt(e.target.value))} className="w-32" />
-        <span className="font-bold text-blue-600">{targetMargin}%</span>
+      <div className="mb-4 flex flex-wrap items-center gap-4 no-print">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Margen objetivo:</span>
+          <input type="range" min="5" max="30" value={targetMargin} onChange={(e) => setTargetMargin(parseInt(e.target.value))} className="w-32" />
+          <span className="font-bold text-blue-600 min-w-[3rem]">{targetMargin}%</span>
+        </div>
+        <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+          PV actual: <span className="font-semibold">{formatCurrency(precioVenta)}</span>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -875,25 +1251,67 @@ function SensitivityAnalysis({ params, currentQuality, precioVenta }: { params: 
             <tr className="border-b-2 border-gray-200">
               <th className="text-left py-3 px-2">Calidad</th>
               <th className="text-right py-3 px-2">Inversion</th>
+              <th className="text-right py-3 px-2">PV 13%</th>
               <th className="text-right py-3 px-2">PV 15%</th>
               <th className="text-right py-3 px-2">PV 20%</th>
-              <th className="text-right py-3 px-2 bg-green-50">Beneficio {targetMargin}%</th>
+              <th className="text-right py-3 px-2 bg-blue-50 border-l-2 border-blue-200">
+                <div className="text-blue-700">PV {targetMargin}%</div>
+                <div className="text-xs font-normal text-blue-500">Precio Venta</div>
+              </th>
+              <th className="text-right py-3 px-2 bg-green-50">
+                <div className="text-green-700">Beneficio</div>
+                <div className="text-xs font-normal text-green-500">con {targetMargin}%</div>
+              </th>
             </tr>
           </thead>
           <tbody>
             {qualityData.map((row) => (
               <tr key={row.qualityLevel} className={`border-b ${row.qualityLevel === currentQuality ? "bg-yellow-50 font-semibold" : ""}`}>
-                <td className="py-3 px-2">{"*".repeat(row.qualityLevel)} {row.qualityLevel === currentQuality && <span className="ml-1 text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">Actual</span>}</td>
+                <td className="py-3 px-2">
+                  <span className="text-yellow-500">{"★".repeat(row.qualityLevel)}</span>
+                  <span className="text-gray-300">{"★".repeat(5 - row.qualityLevel)}</span>
+                  {row.qualityLevel === currentQuality && <span className="ml-1 text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">Actual</span>}
+                </td>
                 <td className="text-right py-3 px-2">{formatCurrency(row.inversionBase)}</td>
-                <td className="text-right py-3 px-2">{formatCurrency(row.requiredPrice15)}</td>
-                <td className="text-right py-3 px-2">{formatCurrency(row.requiredPrice20)}</td>
-                <td className={`text-right py-3 px-2 bg-green-50 font-semibold ${row.beneficioEsperado >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(row.beneficioEsperado)}</td>
+                <td className="text-right py-3 px-2 text-gray-600">{formatCurrency(row.requiredPrice13)}</td>
+                <td className="text-right py-3 px-2 text-gray-600">{formatCurrency(row.requiredPrice15)}</td>
+                <td className="text-right py-3 px-2 text-gray-600">{formatCurrency(row.requiredPrice20)}</td>
+                <td className="text-right py-3 px-2 bg-blue-50 border-l-2 border-blue-200 font-bold text-blue-700">
+                  {formatCurrency(row.requiredPriceCustom)}
+                </td>
+                <td className={`text-right py-3 px-2 bg-green-50 font-semibold ${row.beneficioEsperado >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  {formatCurrency(row.beneficioEsperado)}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="mt-3 text-xs text-gray-500">* Beneficio calculado con el precio de venta necesario para alcanzar el margen objetivo del {targetMargin}%</div>
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <div className="bg-blue-50 p-3 rounded-lg">
+          <div className="font-semibold text-blue-700 mb-1">Precio de Venta necesario ({targetMargin}%)</div>
+          <div className="text-gray-600">
+            Para la calidad actual ({currentQuality}★), necesitas vender a{' '}
+            <span className="font-bold text-blue-700">{formatCurrency(qualityData.find(q => q.qualityLevel === currentQuality)?.requiredPriceCustom || 0)}</span>
+            {' '}para conseguir un margen del {targetMargin}%
+          </div>
+        </div>
+        <div className="bg-gray-50 p-3 rounded-lg">
+          <div className="font-semibold text-gray-700 mb-1">Diferencia con PV actual</div>
+          {(() => {
+            const currentRow = qualityData.find(q => q.qualityLevel === currentQuality)
+            const diff = (currentRow?.requiredPriceCustom || 0) - precioVenta
+            return (
+              <div className={`${diff > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {diff > 0
+                  ? `Necesitas subir el precio ${formatCurrency(diff)} para el ${targetMargin}%`
+                  : `Tu precio actual da margen de sobra (${formatCurrency(Math.abs(diff))} extra)`
+                }
+              </div>
+            )
+          })()}
+        </div>
+      </div>
     </div>
   )
 }
