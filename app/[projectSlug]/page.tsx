@@ -157,6 +157,7 @@ function CalculatorContent() {
   const [showVersionSelector, setShowVersionSelector] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [nuevoComentario, setNuevoComentario] = useState('')
+  const [headerCollapsed, setHeaderCollapsed] = useState(false)
 
   // Cargar proyecto y versiones
   useEffect(() => {
@@ -181,7 +182,17 @@ function CalculatorContent() {
         if (activeVersion) {
           setActiveVersionData(activeVersion)
           // Merge con defaults para campos que puedan faltar
-          setData({ ...defaultCalculatorData, ...activeVersion.data })
+          const mergedData = { ...defaultCalculatorData, ...activeVersion.data }
+          // Auto-rellenar direccion con nombre del proyecto si esta vacia
+          if (!mergedData.direccion && projectData.name) {
+            mergedData.direccion = projectData.name
+          }
+          setData(mergedData)
+        } else {
+          // Si no hay version activa, auto-rellenar direccion con nombre del proyecto
+          if (projectData.name) {
+            setData(prev => ({ ...prev, direccion: projectData.name }))
+          }
         }
       } catch (error) {
         console.error('Error loading project:', error)
@@ -379,64 +390,94 @@ function CalculatorContent() {
 
   return (
     <div className="min-h-screen pb-12">
-      {/* Header sticky con metricas */}
-      <div className="bg-lumier-black text-white py-4 px-8 sticky top-0 z-50 no-print">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="text-xl font-bold text-white">{projectTitle}</h1>
-              <div className="text-sm opacity-80">{data.ciudad} | {calculations.m2Totales} m2 totales</div>
-            </div>
-            <svg viewBox="0 0 280 60" className="h-12" style={{width: 'auto'}}>
-              <defs>
-                <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" style={{stopColor: '#d4af37'}} />
-                  <stop offset="50%" style={{stopColor: '#f4e4bc'}} />
-                  <stop offset="100%" style={{stopColor: '#d4af37'}} />
-                </linearGradient>
-              </defs>
-              <text x="140" y="32" textAnchor="middle" fill="white" style={{fontFamily: "'Playfair Display', Georgia, serif", fontSize: '32px', fontWeight: 600, letterSpacing: '0.2em'}}>LUMIER</text>
-              <line x1="40" y1="42" x2="120" y2="42" stroke="url(#goldGradient)" strokeWidth="1" />
-              <line x1="160" y1="42" x2="240" y2="42" stroke="url(#goldGradient)" strokeWidth="1" />
-              <text x="140" y="54" textAnchor="middle" fill="white" style={{fontFamily: "'Inter', sans-serif", fontSize: '9px', fontWeight: 300, letterSpacing: '0.35em', opacity: 0.9}}>CASAS BOUTIQUE</text>
+      {/* Header sticky con metricas - colapsable en mobile */}
+      <div className="bg-lumier-black text-white sticky top-0 z-50 no-print">
+        {/* Barra superior con boton volver y colapsar */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white border-opacity-20">
+          <a href="/" className="flex items-center gap-2 text-white hover:text-lumier-gold transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-4 pt-3 border-t border-white border-opacity-30">
-            <div>
-              <div className="text-xs opacity-70">Precio Compra</div>
-              <div className="font-semibold">{formatCurrency(data.precioCompra)}</div>
-              <div className="text-xs opacity-70">{formatCurrency(data.precioCompra / calculations.m2Totales)}/m2</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">Precio Venta</div>
-              <div className="font-semibold">{formatCurrency(data.precioVenta)}</div>
-              <div className="text-xs opacity-70">{formatCurrency(data.precioVenta / calculations.m2Totales)}/m2</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">Inversion Total</div>
-              <div className="font-semibold">{formatCurrency(calculations.inversionTotal)}</div>
-              <div className="text-xs opacity-70">{formatCurrency(calculations.euroM2Inversion)}/m2</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">ROI</div>
-              <div className="text-2xl font-bold">{formatPercent(calculations.roi)}</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">Margen</div>
-              <div className="text-2xl font-bold">{formatPercent(calculations.margen)}</div>
-            </div>
-            <div>
-              <div className="text-xs opacity-70">TIR Anual</div>
-              <div className={`text-2xl font-bold ${calculations.tir >= 30 ? "text-green-400" : calculations.tir >= 20 ? "text-yellow-400" : "text-red-400"}`}>{formatPercent(calculations.tir)}</div>
-              <div className="text-xs opacity-70">{calculations.mesesProyecto.toFixed(1)} meses ({calculations.diasProyecto} dias)</div>
-            </div>
-            <div className={`rounded-lg p-2 -my-1 ${calculations.margen >= 16 ? "bg-green-600" : calculations.margen >= 13 ? "bg-orange-500" : "bg-red-600"}`}>
-              <div className="text-xs opacity-90">Beneficio Neto</div>
-              <div className="text-2xl font-extrabold">{formatCurrency(calculations.beneficioNeto)}</div>
-              <div className="text-xs font-semibold">{calculations.margen >= 16 ? "OPORTUNIDAD" : calculations.margen >= 13 ? "AJUSTADO" : "NO HACER"}</div>
+            <span className="text-sm font-medium hidden sm:inline">Volver a proyectos</span>
+          </a>
+          <button
+            onClick={() => setHeaderCollapsed(!headerCollapsed)}
+            className="lg:hidden flex items-center gap-1 text-xs text-white/70 hover:text-white px-2 py-1 rounded bg-white/10"
+          >
+            <svg className={`w-4 h-4 transition-transform ${headerCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+            </svg>
+            {headerCollapsed ? 'Expandir' : 'Colapsar'}
+          </button>
+          <svg viewBox="0 0 280 60" className="h-8 hidden sm:block" style={{width: 'auto'}}>
+            <defs>
+              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style={{stopColor: '#d4af37'}} />
+                <stop offset="50%" style={{stopColor: '#f4e4bc'}} />
+                <stop offset="100%" style={{stopColor: '#d4af37'}} />
+              </linearGradient>
+            </defs>
+            <text x="140" y="28" textAnchor="middle" fill="white" style={{fontFamily: "'Playfair Display', Georgia, serif", fontSize: '28px', fontWeight: 600, letterSpacing: '0.2em'}}>LUMIER</text>
+            <text x="140" y="45" textAnchor="middle" fill="white" style={{fontFamily: "'Inter', sans-serif", fontSize: '8px', fontWeight: 300, letterSpacing: '0.35em', opacity: 0.9}}>CASAS BOUTIQUE</text>
+          </svg>
+        </div>
+
+        {/* Contenido colapsable del header */}
+        <div className={`transition-all duration-300 overflow-hidden ${headerCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
+          <div className="px-4 sm:px-8 py-4">
+            <div className="max-w-7xl mx-auto">
+              <div className="mb-3">
+                <h1 className="text-lg sm:text-xl font-bold text-white">{projectTitle}</h1>
+                <div className="text-sm opacity-80">{data.ciudad} | {calculations.m2Totales} m2 totales</div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 pt-3 border-t border-white border-opacity-30">
+                <div>
+                  <div className="text-xs opacity-70">Precio Compra</div>
+                  <div className="font-semibold text-sm sm:text-base">{formatCurrency(data.precioCompra)}</div>
+                  <div className="text-xs opacity-70 hidden sm:block">{formatCurrency(data.precioCompra / calculations.m2Totales)}/m2</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70">Precio Venta</div>
+                  <div className="font-semibold text-sm sm:text-base">{formatCurrency(data.precioVenta)}</div>
+                  <div className="text-xs opacity-70 hidden sm:block">{formatCurrency(data.precioVenta / calculations.m2Totales)}/m2</div>
+                </div>
+                <div className="hidden sm:block">
+                  <div className="text-xs opacity-70">Inversion Total</div>
+                  <div className="font-semibold">{formatCurrency(calculations.inversionTotal)}</div>
+                  <div className="text-xs opacity-70">{formatCurrency(calculations.euroM2Inversion)}/m2</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70">ROI</div>
+                  <div className="text-xl sm:text-2xl font-bold">{formatPercent(calculations.roi)}</div>
+                </div>
+                <div>
+                  <div className="text-xs opacity-70">Margen</div>
+                  <div className="text-xl sm:text-2xl font-bold">{formatPercent(calculations.margen)}</div>
+                </div>
+                <div className="hidden lg:block">
+                  <div className="text-xs opacity-70">TIR Anual</div>
+                  <div className={`text-2xl font-bold ${calculations.tir >= 30 ? "text-green-400" : calculations.tir >= 20 ? "text-yellow-400" : "text-red-400"}`}>{formatPercent(calculations.tir)}</div>
+                  <div className="text-xs opacity-70">{calculations.mesesProyecto.toFixed(1)} meses</div>
+                </div>
+                <div className={`rounded-lg p-2 -my-1 col-span-2 sm:col-span-1 ${calculations.margen >= 16 ? "bg-green-600" : calculations.margen >= 13 ? "bg-orange-500" : "bg-red-600"}`}>
+                  <div className="text-xs opacity-90">Beneficio Neto</div>
+                  <div className="text-xl sm:text-2xl font-extrabold">{formatCurrency(calculations.beneficioNeto)}</div>
+                  <div className="text-xs font-semibold">{calculations.margen >= 16 ? "OPORTUNIDAD" : calculations.margen >= 13 ? "AJUSTADO" : "NO HACER"}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Mini header cuando esta colapsado (solo mobile) */}
+        {headerCollapsed && (
+          <div className="lg:hidden px-4 py-2 flex items-center justify-between text-sm">
+            <span className="font-medium truncate flex-1">{data.direccion || project?.name}</span>
+            <div className={`px-2 py-1 rounded text-xs font-bold ${calculations.margen >= 16 ? "bg-green-600" : calculations.margen >= 13 ? "bg-orange-500" : "bg-red-600"}`}>
+              {formatCurrency(calculations.beneficioNeto)} ({formatPercent(calculations.margen)})
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Barra de Versiones */}
