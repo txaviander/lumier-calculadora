@@ -485,24 +485,172 @@ Para que el login funcione, necesitamos decirle a Google cuál es la URL final d
 
 ---
 
-## Paso 4.6: Probar que todo funciona
+## Paso 4.6: Configurar Supabase Site URL (MUY IMPORTANTE)
+
+Para que el login funcione correctamente, necesitamos decirle a Supabase cual es la URL de tu web.
+
+1. Ve a **Supabase** (https://supabase.com/dashboard)
+
+2. Abre tu proyecto **lumier-calculadora**
+
+3. En el menu de la izquierda, haz clic en **"Authentication"** (icono de persona)
+
+4. Haz clic en **"URL Configuration"** (en el submenu)
+
+5. En **"Site URL"**, cambia el valor por tu URL de Vercel:
+   ```
+   https://lumier-calculadora.vercel.app
+   ```
+   (usa TU URL de Vercel, sin barra al final)
+
+6. En **"Redirect URLs"**, haz clic en **"Add URL"** y anade:
+   ```
+   https://lumier-calculadora.vercel.app/**
+   ```
+   (nota los `/**` al final - esto permite cualquier subruta)
+
+7. Haz clic en **"Save"**
+
+---
+
+## Paso 4.7: Probar que todo funciona
 
 1. Abre tu URL de Vercel en el navegador
 
-2. Deberías ver la pantalla de login con el botón "Continuar con Google"
+2. Deberias ver la pantalla de login con el boton "Continuar con Google"
 
 3. Haz clic en **"Continuar con Google"**
 
 4. Selecciona tu cuenta `@lumier.es`
 
-5. ✅ Deberías entrar al dashboard de proyectos
+5. ✅ Deberias entrar al dashboard de proyectos
 
 **Si intentas con un email que NO es @lumier.es:**
-- Verás un mensaje: "Acceso denegado. Solo se permite el acceso con cuentas @lumier.es"
+- Veras un mensaje: "Acceso denegado. Solo se permite el acceso con cuentas @lumier.es"
 
 ---
 
-# PARTE 5: Cómo Usar la Plataforma
+# PARTE 5: Despliegue Continuo desde GitHub
+
+## ¿Que es el despliegue continuo?
+
+Cuando conectas Vercel con GitHub, cada vez que hagas cambios en el codigo y los subas a GitHub, Vercel automaticamente actualizara tu web. No tienes que hacer nada mas - es automatico.
+
+## Como funciona (ya esta configurado)
+
+1. Tu haces cambios en el codigo
+2. Subes los cambios a GitHub (push)
+3. Vercel detecta los cambios automaticamente
+4. Vercel construye y despliega la nueva version (2-3 minutos)
+5. Tu web se actualiza sola
+
+## Como subir cambios a GitHub
+
+### Opcion A: Usando GitHub Desktop (Recomendado para principiantes)
+
+1. **Descargar GitHub Desktop:**
+   - Ve a: https://desktop.github.com
+   - Descarga e instala el programa
+   - Inicia sesion con tu cuenta de GitHub
+
+2. **Clonar tu repositorio:**
+   - En GitHub Desktop, haz clic en **"File"** → **"Clone repository"**
+   - Busca **"lumier-calculadora"** y seleccionalo
+   - Elige donde guardarlo en tu ordenador
+   - Haz clic en **"Clone"**
+
+3. **Hacer cambios:**
+   - Abre la carpeta donde clonaste el proyecto
+   - Haz los cambios que necesites en los archivos
+   - Guarda los archivos
+
+4. **Subir los cambios:**
+   - Abre GitHub Desktop
+   - Veras los archivos modificados en la lista de la izquierda
+   - Abajo, en **"Summary"**, escribe un resumen del cambio (ej: "Corregido calculo de ITP")
+   - Haz clic en **"Commit to main"**
+   - Haz clic en **"Push origin"** (arriba)
+
+5. **Verificar el despliegue:**
+   - Ve a Vercel (https://vercel.com)
+   - Abre tu proyecto
+   - Veras el nuevo despliegue en progreso
+   - Espera 2-3 minutos
+   - Tu web ya esta actualizada
+
+### Opcion B: Subir archivos directamente en GitHub.com
+
+Si solo necesitas cambiar uno o dos archivos:
+
+1. Ve a tu repositorio en GitHub (https://github.com/TU-USUARIO/lumier-calculadora)
+
+2. Navega hasta el archivo que quieres cambiar
+
+3. Haz clic en el icono del lapiz (Edit this file)
+
+4. Haz los cambios
+
+5. Baja y en **"Commit changes"**, escribe un resumen
+
+6. Haz clic en **"Commit changes"**
+
+7. Vercel detectara el cambio y desplegara automaticamente
+
+### Opcion C: Reemplazar todos los archivos
+
+Si tienes una carpeta nueva con todos los archivos actualizados:
+
+1. Ve a tu repositorio en GitHub
+
+2. Elimina todos los archivos:
+   - Haz clic en cada archivo → icono de papelera → Commit
+   - O usa la opcion "Delete this file" en cada uno
+
+3. Sube los nuevos archivos:
+   - Haz clic en **"Add file"** → **"Upload files"**
+   - Arrastra toda la carpeta nueva
+   - Haz clic en **"Commit changes"**
+
+---
+
+## Como ver el estado del despliegue
+
+1. Ve a **https://vercel.com**
+
+2. Haz clic en tu proyecto **lumier-calculadora**
+
+3. Veras una lista de **"Deployments"** (despliegues):
+
+   ```
+   ┌─────────────────────────────────────────────────────┐
+   │  Deployments                                        │
+   │                                                     │
+   │  ✅ Production (hace 5 min) - Corregido calculo     │
+   │  ✅ Production (hace 2 dias) - Subida inicial       │
+   └─────────────────────────────────────────────────────┘
+   ```
+
+   - ✅ Verde = Despliegue exitoso
+   - 🟡 Amarillo = En progreso
+   - ❌ Rojo = Error (haz clic para ver el error)
+
+---
+
+## Forzar un redespliegue manual
+
+Si por alguna razon necesitas redesplegar sin hacer cambios:
+
+1. Ve a Vercel → Tu proyecto
+
+2. Haz clic en los **"..."** (tres puntos) junto al ultimo despliegue
+
+3. Haz clic en **"Redeploy"**
+
+4. Confirma haciendo clic en **"Redeploy"**
+
+---
+
+# PARTE 6: Como Usar la Plataforma
 
 ## Para iniciar sesión
 
@@ -607,4 +755,4 @@ Tu plataforma está lista con acceso restringido solo para empleados de Lumier.
 
 ---
 
-*Lumier Casas Boutique - Calculadora de Renovaciones v1.0*
+*Lumier Casas Boutique - Calculadora de Renovaciones v2.0*

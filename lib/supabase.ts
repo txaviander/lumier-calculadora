@@ -25,39 +25,56 @@ export interface ProjectVersion {
   is_active: boolean
 }
 
+export interface Comentario {
+  id: number
+  texto: string
+  autor: string
+  fecha: string
+}
+
 export interface CalculatorData {
-  // Datos de compra
+  // Datos del inmueble
+  ciudad: string
+  direccion: string
+  planta: string
+  m2Construidos: number
+  m2ZZCC: number
+  terrazaM2: number
+  exterior: string
+  ascensor: boolean
+  portero: boolean
+  ite: boolean
+  garaje: boolean
+  toldoPergola: boolean
+
+  // Compra
   precioCompra: number
-  impuestosCompra: number
-  notariaCompra: number
-  registroCompra: number
-  gestoriaCompra: number
-  otrosGastosCompra: number
-
-  // Datos de reforma
-  totalReforma: number
-  honorariosReforma: number
-
-  // Financiacion
-  capitalPropio: number
-  prestamo: number
-  interesPrestamo: number
-  mesesPrestamo: number
-
-  // Fechas
   fechaCompra: string
-  fechaInicioReforma: string
-  fechaFinReforma: string
-  fechaVenta: string
+  intermediacionCompra: boolean
+  porcentajeIntermediacionCompra: number
 
   // Venta
   precioVenta: number
-  comisionVenta: number
-  plusvalia: number
-  notariaVenta: number
-  gestoriaVenta: number
-  otrosGastosVenta: number
-  cancelacionHipoteca: number
+  fechaVenta: string
+  intermediacionVenta: boolean
+  porcentajeIntermediacionVenta: number
+
+  // Reforma
+  calidad: number
+  habitaciones: number
+  banos: number
+  esClasico: boolean
+  ventanas: number
+  calefaccion: string
+  climatizacion: string
+  extras: number
+
+  // Financiacion
+  deuda: number
+  interesFinanciero: number
+
+  // Comentarios
+  comentarios: Comentario[]
 }
 
 // Funciones de base de datos
