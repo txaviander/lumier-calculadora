@@ -380,46 +380,56 @@ function CalculatorContent() {
   // Calculos principales
   const calculations = useMemo(() => {
     const m2Totales = Math.max(1, (data.m2Construidos || 0) + (data.m2ZZCC || 0))
-    const honorarioCompraBase = data.intermediacionCompra ? data.precioCompra * (data.porcentajeIntermediacionCompra / 100) : 0
+    const precioCompra = data.precioCompra || 0
+    const precioVenta = data.precioVenta || 0
+    const m2Construidos = data.m2Construidos || 0
+    const terrazaM2 = data.terrazaM2 || 0
+    const deuda = data.deuda || 0
+    const interesFinanciero = data.interesFinanciero || 0
+    const porcentajeIntermediacionCompra = data.porcentajeIntermediacionCompra || 0
+    const porcentajeIntermediacionVenta = data.porcentajeIntermediacionVenta || 0
+    const calidad = data.calidad || 3
+
+    const honorarioCompraBase = data.intermediacionCompra ? precioCompra * (porcentajeIntermediacionCompra / 100) : 0
     const ivaHonorarioCompra = honorarioCompraBase * 0.21
     const honorarioCompra = honorarioCompraBase + ivaHonorarioCompra
     const inscripcionEscritura = 1530
-    const itp = data.precioCompra * 0.02
-    const totalAdquisicion = data.precioCompra + honorarioCompra + inscripcionEscritura + itp
+    const itp = precioCompra * 0.02
+    const totalAdquisicion = precioCompra + honorarioCompra + inscripcionEscritura + itp
 
     const costeObraBase: Record<number, number> = { 1: 350, 2: 420, 3: 560, 4: 700, 5: 900 }
-    const obra = data.m2Construidos * (costeObraBase[data.calidad] || 560)
+    const obra = m2Construidos * (costeObraBase[calidad] || 560)
     const costeCalidadBase: Record<number, number> = { 1: 300, 2: 400, 3: 512, 4: 650, 5: 850 }
-    const calidadCoste = data.m2Construidos * (costeCalidadBase[data.calidad] || 512)
+    const calidadCoste = m2Construidos * (costeCalidadBase[calidad] || 512)
     const costeInteriorismoBase: Record<number, number> = { 1: 40, 2: 50, 3: 59.1, 4: 75, 5: 95 }
-    const interiorismo = data.m2Construidos * (costeInteriorismoBase[data.calidad] || 59.1) + (data.esClasico ? 790 : 0)
+    const interiorismo = m2Construidos * (costeInteriorismoBase[calidad] || 59.1) + (data.esClasico ? 790 : 0)
     const costeMobiliarioBase: Record<number, number> = { 1: 60, 2: 80, 3: 101.7, 4: 130, 5: 170 }
-    const mobiliario = data.m2Construidos * (costeMobiliarioBase[data.calidad] || 101.7)
-    const terrazaCost = data.terrazaM2 > 0 ? data.terrazaM2 * 36.5 : 0
+    const mobiliario = m2Construidos * (costeMobiliarioBase[calidad] || 101.7)
+    const terrazaCost = terrazaM2 > 0 ? terrazaM2 * 36.5 : 0
     const toldoCost = data.toldoPergola ? 2500 : 0
-    const hardCosts = obra + calidadCoste + interiorismo + mobiliario + terrazaCost + toldoCost + data.extras
+    const hardCosts = obra + calidadCoste + interiorismo + mobiliario + terrazaCost + toldoCost + (data.extras || 0)
 
     const costeArquitecturaBase: Record<number, number> = { 1: 25, 2: 32, 3: 38.3, 4: 48, 5: 60 }
-    const arquitectura = data.m2Construidos * (costeArquitecturaBase[data.calidad] || 38.3)
-    const permisoConstruccion = data.m2Construidos * 34.2
+    const arquitectura = m2Construidos * (costeArquitecturaBase[calidad] || 38.3)
+    const permisoConstruccion = m2Construidos * 34.2
     const gastosVenta = 800
     const costosTenencia = 2490
-    const plusvalia = data.precioVenta * 0.0027
+    const plusvalia = precioVenta * 0.0027
     const softCosts = arquitectura + permisoConstruccion + gastosVenta + costosTenencia + plusvalia
     const totalGastos = hardCosts + softCosts
 
-    const honorariosVentaBase = data.intermediacionVenta ? data.precioVenta * (data.porcentajeIntermediacionVenta / 100) : 0
+    const honorariosVentaBase = data.intermediacionVenta ? precioVenta * (porcentajeIntermediacionVenta / 100) : 0
     const ivaHonorarioVenta = honorariosVentaBase * 0.21
     const honorariosVenta = honorariosVentaBase + ivaHonorarioVenta
-    const ventaNeta = data.precioVenta - honorariosVenta
-    const interesProyecto = data.deuda * (data.interesFinanciero / 100) / 2
-    const equityNecesario = totalAdquisicion + totalGastos - data.deuda
+    const ventaNeta = precioVenta - honorariosVenta
+    const interesProyecto = deuda * (interesFinanciero / 100) / 2
+    const equityNecesario = totalAdquisicion + totalGastos - deuda
     const inversionTotal = totalAdquisicion + totalGastos + interesProyecto
     const beneficioNeto = ventaNeta - inversionTotal
     const roi = inversionTotal > 0 ? (beneficioNeto / inversionTotal) * 100 : 0
-    const margen = data.precioVenta > 0 ? (beneficioNeto / data.precioVenta) * 100 : 0
+    const margen = precioVenta > 0 ? (beneficioNeto / precioVenta) * 100 : 0
     const euroM2Inversion = inversionTotal / m2Totales
-    const euroM2Venta = (data.precioVenta || 0) / m2Totales
+    const euroM2Venta = precioVenta / m2Totales
 
     // Calculo de TIR
     const fechaCompraDate = new Date(data.fechaCompra || new Date())
