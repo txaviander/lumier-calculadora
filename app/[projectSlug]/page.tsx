@@ -379,7 +379,7 @@ function CalculatorContent() {
 
   // Calculos principales
   const calculations = useMemo(() => {
-    const m2Totales = data.m2Construidos + data.m2ZZCC
+    const m2Totales = Math.max(1, (data.m2Construidos || 0) + (data.m2ZZCC || 0))
     const honorarioCompraBase = data.intermediacionCompra ? data.precioCompra * (data.porcentajeIntermediacionCompra / 100) : 0
     const ivaHonorarioCompra = honorarioCompraBase * 0.21
     const honorarioCompra = honorarioCompraBase + ivaHonorarioCompra
@@ -416,18 +416,19 @@ function CalculatorContent() {
     const equityNecesario = totalAdquisicion + totalGastos - data.deuda
     const inversionTotal = totalAdquisicion + totalGastos + interesProyecto
     const beneficioNeto = ventaNeta - inversionTotal
-    const roi = (beneficioNeto / inversionTotal) * 100
-    const margen = (beneficioNeto / data.precioVenta) * 100
+    const roi = inversionTotal > 0 ? (beneficioNeto / inversionTotal) * 100 : 0
+    const margen = data.precioVenta > 0 ? (beneficioNeto / data.precioVenta) * 100 : 0
     const euroM2Inversion = inversionTotal / m2Totales
-    const euroM2Venta = data.precioVenta / m2Totales
+    const euroM2Venta = (data.precioVenta || 0) / m2Totales
 
     // Calculo de TIR
-    const fechaCompraDate = new Date(data.fechaCompra)
-    const fechaVentaDate = new Date(data.fechaVenta)
+    const fechaCompraDate = new Date(data.fechaCompra || new Date())
+    const fechaVentaDate = new Date(data.fechaVenta || new Date())
     const diffTime = fechaVentaDate.getTime() - fechaCompraDate.getTime()
     const diasProyecto = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
     const mesesProyecto = diasProyecto / 30.44
-    const tir = inversionTotal > 0 ? (Math.pow(ventaNeta / inversionTotal, 12 / mesesProyecto) - 1) * 100 : 0
+    const tirRaw = inversionTotal > 0 && ventaNeta > 0 ? (Math.pow(ventaNeta / inversionTotal, 12 / mesesProyecto) - 1) * 100 : 0
+    const tir = isNaN(tirRaw) || !isFinite(tirRaw) ? 0 : tirRaw
 
     return {
       m2Totales, honorarioCompra, inscripcionEscritura, itp, totalAdquisicion, obra, calidadCoste, interiorismo,
@@ -829,31 +830,25 @@ function CalculatorContent() {
                   label="Obra"
                   value={formatCurrency(calculations.obra)}
                   indent
-                  tooltip={`m2 Construidos × Coste/m2 segun calidad\n= ${data.m2Construidos} m2 × ${[350,420,560,700,900][data.calidad-1]} EUR/m2`}
-                  editable
-                  onEdit={(v) => {
-                    // Calcular el nuevo coste por m2 equivalente
-                    const newCalidad = Math.round(v / data.m2Construidos)
-                    // No permite edicion directa de obra, solo informativo
-                  }}
+                  tooltip={`m2 Construidos × Coste/m2 segun calidad\n= ${data.m2Construidos} m2 × ${[350,420,560,700,900][(data.calidad || 3)-1] || 560} EUR/m2`}
                 />
                 <SummaryRow
                   label="Calidad materiales"
                   value={formatCurrency(calculations.calidadCoste)}
                   indent
-                  tooltip={`m2 Construidos × Coste materiales/m2\n= ${data.m2Construidos} m2 × ${[300,400,512,650,850][data.calidad-1]} EUR/m2`}
+                  tooltip={`m2 Construidos × Coste materiales/m2\n= ${data.m2Construidos} m2 × ${[300,400,512,650,850][(data.calidad || 3)-1] || 512} EUR/m2`}
                 />
                 <SummaryRow
                   label="Interiorismo"
                   value={formatCurrency(calculations.interiorismo)}
                   indent
-                  tooltip={`m2 × Coste interiorismo/m2${data.esClasico ? ' + 790 EUR (estilo clasico)' : ''}\n= ${data.m2Construidos} × ${[40,50,59.1,75,95][data.calidad-1]}${data.esClasico ? ' + 790' : ''}`}
+                  tooltip={`m2 × Coste interiorismo/m2${data.esClasico ? ' + 790 EUR (estilo clasico)' : ''}\n= ${data.m2Construidos} × ${[40,50,59.1,75,95][(data.calidad || 3)-1] || 59.1}${data.esClasico ? ' + 790' : ''}`}
                 />
                 <SummaryRow
                   label="Mobiliario"
                   value={formatCurrency(calculations.mobiliario)}
                   indent
-                  tooltip={`m2 × Coste mobiliario/m2\n= ${data.m2Construidos} × ${[60,80,101.7,130,170][data.calidad-1]} EUR/m2`}
+                  tooltip={`m2 × Coste mobiliario/m2\n= ${data.m2Construidos} × ${[60,80,101.7,130,170][(data.calidad || 3)-1] || 101.7} EUR/m2`}
                 />
                 {calculations.extras > 0 && (
                   <SummaryRow
@@ -874,7 +869,7 @@ function CalculatorContent() {
                   label="Arquitectura"
                   value={formatCurrency(calculations.arquitectura)}
                   indent
-                  tooltip={`m2 × Coste arquitectura/m2\n= ${data.m2Construidos} × ${[25,32,38.3,48,60][data.calidad-1]} EUR/m2`}
+                  tooltip={`m2 × Coste arquitectura/m2\n= ${data.m2Construidos} × ${[25,32,38.3,48,60][(data.calidad || 3)-1] || 38.3} EUR/m2`}
                 />
                 <SummaryRow
                   label="Permiso construccion"
