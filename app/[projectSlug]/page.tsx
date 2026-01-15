@@ -62,8 +62,9 @@ const calculateForQuality = (qualityLevel: number, params: {
   const terrazaCost = params.terrazaM2 > 0 ? params.terrazaM2 * 36.5 : 0
   const toldoCost = params.toldoPergola ? 2500 : 0
   const hardCosts = obra + calidadCoste + interiorismo + mobiliario + terrazaCost + toldoCost
-  const costeArquitecturaBase: Record<number, number> = { 1: 25, 2: 32, 3: 38.3, 4: 48, 5: 60 }
-  const arquitectura = params.m2Construidos * (costeArquitecturaBase[qualityLevel] || 38.3)
+  // Arquitectura: importes fijos por calidad (NO €/m2)
+  const arquitecturaFija: Record<number, number> = { 1: 3630, 2: 3630, 3: 6050, 4: 12100, 5: 18150 }
+  const arquitectura = arquitecturaFija[qualityLevel] || 6050
   const softCosts = arquitectura + params.m2Construidos * 34.2 + 800 + 2490
   const totalGastos = hardCosts + softCosts
   const interesProyecto = params.deuda * (params.interesFinanciero / 100) / 2
@@ -132,8 +133,9 @@ const calculateMaxPurchasePrice = (params: {
   const toldoCost = params.toldoPergola ? 2500 : 0
   const hardCosts = obra + calidadCoste + interiorismo + mobiliario + terrazaCost + toldoCost
 
-  const costeArquitecturaBase: Record<number, number> = { 1: 25, 2: 32, 3: 38.3, 4: 48, 5: 60 }
-  const arquitectura = params.m2Construidos * (costeArquitecturaBase[params.calidad] || 38.3)
+  // Arquitectura: importes fijos por calidad (NO €/m2)
+  const arquitecturaFija: Record<number, number> = { 1: 3630, 2: 3630, 3: 6050, 4: 12100, 5: 18150 }
+  const arquitectura = arquitecturaFija[params.calidad] || 6050
   const permisoConstruccion = params.m2Construidos * 34.2
   const gastosVenta = 800
   const costosTenencia = 2490
@@ -409,8 +411,9 @@ function CalculatorContent() {
     const toldoCost = data.toldoPergola ? 2500 : 0
     const hardCosts = obra + calidadCoste + interiorismo + mobiliario + terrazaCost + toldoCost + (data.extras || 0)
 
-    const costeArquitecturaBase: Record<number, number> = { 1: 25, 2: 32, 3: 38.3, 4: 48, 5: 60 }
-    const arquitectura = m2Construidos * (costeArquitecturaBase[calidad] || 38.3)
+    // Arquitectura: importes fijos por calidad (NO €/m2)
+    const arquitecturaFija: Record<number, number> = { 1: 3630, 2: 3630, 3: 6050, 4: 12100, 5: 18150 }
+    const arquitectura = arquitecturaFija[calidad] || 6050
     const permisoConstruccion = m2Construidos * 34.2
     const gastosVenta = 800
     const costosTenencia = 2490
@@ -879,7 +882,7 @@ function CalculatorContent() {
                   label="Arquitectura"
                   value={formatCurrency(calculations.arquitectura)}
                   indent
-                  tooltip={`m2 × Coste arquitectura/m2\n= ${data.m2Construidos} × ${[25,32,38.3,48,60][(data.calidad || 3)-1] || 38.3} EUR/m2`}
+                  tooltip={`Importe fijo segun calidad:\n1★/2★: 3.630€ | 3★: 6.050€ | 4★: 12.100€ | 5★: 18.150€\nCalidad actual (${data.calidad}★): ${formatCurrency([3630,3630,6050,12100,18150][(data.calidad || 3)-1] || 6050)}`}
                 />
                 <SummaryRow
                   label="Permiso construccion"
