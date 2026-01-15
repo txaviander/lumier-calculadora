@@ -215,6 +215,119 @@ export async function deleteProject(projectId: string): Promise<void> {
   if (error) throw error
 }
 
+// Interfaz para proyecto con métricas
+export interface ProjectWithMetrics extends Project {
+  activeVersion?: ProjectVersion | null
+  metrics?: {
+    precioCompra: number
+    precioVenta: number
+    inversionTotal: number
+    beneficioNeto: number
+    margen: number
+    roi: number
+    m2Totales: number
+    ciudad: string
+    direccion: string
+  } | null
+}
+
+// Función para calcular métricas desde CalculatorData
+export function calculateMetricsFromData(data: CalculatorData): ProjectWithMetrics['metrics'] {
+  if (!data) return null
+
+  const m2Totales = (data.m2Construidos || 0) + (data.m2ZZCC || 0)
+
+  // Cálculos de adquisición
+  const honorarioCompraBase = data.intermediacionCompra ? data.precioCompra * (data.porcentajeIntermediacionCompra / 100) : 0
+  const honorarioCompra = honorarioCompraBase * 1.21
+  const inscripcionEscritura = 1530
+  const itp = data.precioCompra * 0.02
+  const totalAdquisicion = data.precioCompra + honorarioCompra + inscripcionEscritura + itp
+
+  // Cálculos de reforma (hard costs)
+  const costeObraBase: Record<number, number> = { 1: 350, 2: 420, 3: 560, 4: 700, 5: 900 }
+  const obra = data.m2Construidos * (costeObraBase[data.calidad] || 560)
+  const costeCalidadBase: Record<number, number> = { 1: 300, 2: 400, 3: 512, 4: 650, 5: 850 }
+  const calidadCoste = data.m2Construidos * (costeCalidadBase[data.calidad] || 512)
+  const costeInteriorismoBase: Record<number, number> = { 1: 40, 2: 50, 3: 59.1, 4: 75, 5: 95 }
+  const interiorismo = data.m2Construidos * (costeInteriorismoBase[data.calidad] || 59.1) + (data.esClasico ? 790 : 0)
+  const costeMobiliarioBase: Record<number, number> = { 1: 60, 2: 80, 3: 101.7, 4: 130, 5: 170 }
+  const mobiliario = data.m2Construidos * (costeMobiliarioBase[data.calidad] || 101.7)
+  const terrazaCost = data.terrazaM2 > 0 ? data.terrazaM2 * 36.5 : 0
+  const toldoCost = data.toldoPergola ? 2500 : 0
+  const hardCosts = obra + calidadCoste + interiorismo + mobiliario + terrazaCost + toldoCost + (data.extras || 0)
+
+  // Soft costs
+  const costeArquitecturaBase: Record<number, number> = { 1: 25, 2: 32, 3: 38.3, 4: 48, 5: 60 }
+  const arquitectura = data.m2Construidos * (costeArquitecturaBase[data.calidad] || 38.3)
+  const permisoConstruccion = data.m2Construidos * 34.2
+  const gastosVenta = 800
+  const costosTenencia = 2490
+  const plusvalia = data.precioVenta * 0.0027
+  const softCosts = arquitectura + permisoConstruccion + gastosVenta + costosTenencia + plusvalia
+  const totalGastos = hardCosts + softCosts
+
+  // Venta
+  const honorariosVentaBase = data.intermediacionVenta ? data.precioVenta * (data.porcentajeIntermediacionVenta / 100) : 0
+  const honorariosVenta = honorariosVentaBase * 1.21
+  const ventaNeta = data.precioVenta - honorariosVenta
+
+  // Financiación
+  const interesProyecto = data.deuda * (data.interesFinanciero / 100) / 2
+
+  // Totales
+  const inversionTotal = totalAdquisicion + totalGastos + interesProyecto
+  const beneficioNeto = ventaNeta - inversionTotal
+  const roi = inversionTotal > 0 ? (beneficioNeto / inversionTotal) * 100 : 0
+  const margen = data.precioVenta > 0 ? (beneficioNeto / data.precioVenta) * 100 : 0
+
+  return {
+    precioCompra: data.precioCompra || 0,
+    precioVenta: data.precioVenta || 0,
+    inversionTotal,
+    beneficioNeto,
+    margen,
+    roi,
+    m2Totales,
+    ciudad: data.ciudad || '',
+    direccion: data.direccion || ''
+  }
+}
+
+// Obtener proyectos con métricas de la versión activa
+export async function getProjectsWithMetrics(): Promise<ProjectWithMetrics[]> {
+  // Obtener todos los proyectos
+  const { data: projects, error: projectsError } = await supabase
+    .from('projects')
+    .select('*')
+    .order('updated_at', { ascending: false })
+
+  if (projectsError) throw projectsError
+  if (!projects) return []
+
+  // Obtener las versiones activas de todos los proyectos
+  const projectIds = projects.map(p => p.id)
+  const { data: activeVersions, error: versionsError } = await supabase
+    .from('project_versions')
+    .select('*')
+    .in('project_id', projectIds)
+    .eq('is_active', true)
+
+  if (versionsError) throw versionsError
+
+  // Combinar proyectos con sus métricas
+  return projects.map(project => {
+    const activeVersion = activeVersions?.find(v => v.project_id === project.id) || null
+    const metrics = activeVersion?.data ? calculateMetricsFromData(activeVersion.data) : null
+
+    return {
+      ...project,
+      activeVersion,
+      metrics
+    }
+  })
+}
+
 // Utilidad para generar slugs
 function generateSlug(name: string): string {
   const base = name

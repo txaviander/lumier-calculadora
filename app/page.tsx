@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { Project, getProjects, createProject, deleteProject } from '@/lib/supabase'
+import { ProjectWithMetrics, getProjectsWithMetrics, createProject, deleteProject } from '@/lib/supabase'
+
+type ViewMode = 'grid' | 'list'
+type SortOption = 'updated' | 'name' | 'beneficio' | 'margen' | 'roi'
 
 export default function HomePage() {
   return (
@@ -15,12 +18,15 @@ export default function HomePage() {
 }
 
 function HomeContent() {
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<ProjectWithMetrics[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewProject, setShowNewProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDescription, setNewProjectDescription] = useState('')
   const [creating, setCreating] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<SortOption>('updated')
 
   useEffect(() => {
     loadProjects()
@@ -28,7 +34,7 @@ function HomeContent() {
 
   async function loadProjects() {
     try {
-      const data = await getProjects()
+      const data = await getProjectsWithMetrics()
       setProjects(data)
     } catch (error) {
       console.error('Error loading projects:', error)
@@ -44,7 +50,8 @@ function HomeContent() {
     setCreating(true)
     try {
       const project = await createProject(newProjectName, newProjectDescription || undefined)
-      setProjects([project, ...projects])
+      // Recargar proyectos para obtener métricas
+      await loadProjects()
       setNewProjectName('')
       setNewProjectDescription('')
       setShowNewProject(false)
@@ -70,6 +77,62 @@ function HomeContent() {
     }
   }
 
+  // Filtrar y ordenar proyectos
+  const filteredProjects = useMemo(() => {
+    let result = [...projects]
+
+    // Filtrar por búsqueda
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(p =>
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.metrics?.ciudad?.toLowerCase().includes(query) ||
+        p.metrics?.direccion?.toLowerCase().includes(query)
+      )
+    }
+
+    // Ordenar
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'beneficio':
+          return (b.metrics?.beneficioNeto || 0) - (a.metrics?.beneficioNeto || 0)
+        case 'margen':
+          return (b.metrics?.margen || 0) - (a.metrics?.margen || 0)
+        case 'roi':
+          return (b.metrics?.roi || 0) - (a.metrics?.roi || 0)
+        case 'updated':
+        default:
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      }
+    })
+
+    return result
+  }, [projects, searchQuery, sortBy])
+
+  // Calcular totales
+  const totals = useMemo(() => {
+    const projectsWithMetrics = projects.filter(p => p.metrics)
+    return {
+      totalProjects: projects.length,
+      totalInversion: projectsWithMetrics.reduce((sum, p) => sum + (p.metrics?.inversionTotal || 0), 0),
+      totalBeneficio: projectsWithMetrics.reduce((sum, p) => sum + (p.metrics?.beneficioNeto || 0), 0),
+      avgMargen: projectsWithMetrics.length > 0
+        ? projectsWithMetrics.reduce((sum, p) => sum + (p.metrics?.margen || 0), 0) / projectsWithMetrics.length
+        : 0
+    }
+  }, [projects])
+
+  function formatCurrency(value: number) {
+    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value)
+  }
+
+  function formatPercent(value: number) {
+    return new Intl.NumberFormat('es-ES', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value / 100)
+  }
+
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString('es-ES', {
       day: 'numeric',
@@ -78,13 +141,34 @@ function HomeContent() {
     })
   }
 
+  function getMargenColor(margen: number | undefined) {
+    if (margen === undefined) return 'text-gray-400'
+    if (margen >= 16) return 'text-green-600'
+    if (margen >= 13) return 'text-orange-500'
+    return 'text-red-500'
+  }
+
+  function getMargenBgColor(margen: number | undefined) {
+    if (margen === undefined) return 'bg-gray-100'
+    if (margen >= 16) return 'bg-green-100'
+    if (margen >= 13) return 'bg-orange-100'
+    return 'bg-red-100'
+  }
+
+  function getMargenLabel(margen: number | undefined) {
+    if (margen === undefined) return 'Sin datos'
+    if (margen >= 16) return 'OPORTUNIDAD'
+    if (margen >= 13) return 'AJUSTADO'
+    return 'NO HACER'
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <main className="max-w-6xl mx-auto p-6">
+      <main className="max-w-7xl mx-auto p-6">
         {/* Header section */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Mis Proyectos</h1>
             <p className="text-gray-500 mt-1">Gestiona las calculadoras de tus proyectos inmobiliarios</p>
@@ -99,6 +183,109 @@ function HomeContent() {
             Nuevo Proyecto
           </button>
         </div>
+
+        {/* Stats Cards */}
+        {projects.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl card-shadow p-4">
+              <div className="text-sm text-gray-500">Total Proyectos</div>
+              <div className="text-2xl font-bold text-gray-800">{totals.totalProjects}</div>
+            </div>
+            <div className="bg-white rounded-xl card-shadow p-4">
+              <div className="text-sm text-gray-500">Inversion Total</div>
+              <div className="text-2xl font-bold text-gray-800">{formatCurrency(totals.totalInversion)}</div>
+            </div>
+            <div className="bg-white rounded-xl card-shadow p-4">
+              <div className="text-sm text-gray-500">Beneficio Total</div>
+              <div className={`text-2xl font-bold ${totals.totalBeneficio >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {formatCurrency(totals.totalBeneficio)}
+              </div>
+            </div>
+            <div className="bg-white rounded-xl card-shadow p-4">
+              <div className="text-sm text-gray-500">Margen Promedio</div>
+              <div className={`text-2xl font-bold ${getMargenColor(totals.avgMargen)}`}>
+                {formatPercent(totals.avgMargen)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Search and View Controls */}
+        {projects.length > 0 && (
+          <div className="bg-white rounded-xl card-shadow p-4 mb-6">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              {/* Search */}
+              <div className="relative flex-1 w-full md:max-w-md">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Buscar proyectos por nombre, ciudad o direccion..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lumier-gold focus:border-transparent"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* Sort */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Ordenar:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-lumier-gold focus:border-transparent"
+                  >
+                    <option value="updated">Fecha actualizacion</option>
+                    <option value="name">Nombre</option>
+                    <option value="beneficio">Beneficio</option>
+                    <option value="margen">Margen</option>
+                    <option value="roi">ROI</option>
+                  </select>
+                </div>
+
+                {/* View Mode Toggle */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-lumier-gold' : 'text-gray-500 hover:text-gray-700'}`}
+                    title="Vista cuadricula"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-lumier-gold' : 'text-gray-500 hover:text-gray-700'}`}
+                    title="Vista lista"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {searchQuery && (
+              <div className="mt-3 text-sm text-gray-500">
+                {filteredProjects.length} proyecto{filteredProjects.length !== 1 ? 's' : ''} encontrado{filteredProjects.length !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* New Project Modal */}
         {showNewProject && (
@@ -157,7 +344,7 @@ function HomeContent() {
           </div>
         )}
 
-        {/* Projects Grid */}
+        {/* Projects View */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lumier-gold"></div>
@@ -181,42 +368,194 @@ function HomeContent() {
               Crear Primer Proyecto
             </button>
           </div>
-        ) : (
+        ) : filteredProjects.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No se encontraron proyectos</h3>
+            <p className="text-gray-500 mb-4">No hay proyectos que coincidan con "{searchQuery}"</p>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="text-lumier-gold hover:text-yellow-600 font-medium"
+            >
+              Limpiar busqueda
+            </button>
+          </div>
+        ) : viewMode === 'grid' ? (
+          /* Grid View */
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <Link
                 key={project.id}
                 href={`/${project.slug}`}
-                className="bg-white rounded-xl card-shadow p-6 hover:scale-[1.02] transition-transform group"
+                className="bg-white rounded-xl card-shadow overflow-hidden hover:scale-[1.02] transition-transform group"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-lumier-gold to-yellow-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-                    {project.name.charAt(0).toUpperCase()}
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      handleDeleteProject(project.id, project.name)
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all"
-                    title="Eliminar proyecto"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                {/* Header con indicador de margen */}
+                <div className={`px-4 py-2 ${getMargenBgColor(project.metrics?.margen)}`}>
+                  <span className={`text-xs font-bold ${getMargenColor(project.metrics?.margen)}`}>
+                    {getMargenLabel(project.metrics?.margen)}
+                  </span>
                 </div>
-                <h3 className="font-bold text-lg text-gray-800 mb-1 group-hover:text-lumier-gold transition-colors">
-                  {project.name}
-                </h3>
-                {project.description && (
-                  <p className="text-sm text-gray-500 mb-3 line-clamp-2">{project.description}</p>
-                )}
-                <div className="flex items-center gap-4 text-xs text-gray-400 mt-4 pt-4 border-t">
-                  <span>Actualizado: {formatDate(project.updated_at)}</span>
+
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-lumier-gold to-yellow-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+                      {project.name.charAt(0).toUpperCase()}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleDeleteProject(project.id, project.name)
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all"
+                      title="Eliminar proyecto"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <h3 className="font-bold text-lg text-gray-800 mb-1 group-hover:text-lumier-gold transition-colors">
+                    {project.name}
+                  </h3>
+
+                  {project.metrics?.direccion && (
+                    <p className="text-sm text-gray-500 mb-3">
+                      {project.metrics.direccion}{project.metrics.ciudad ? `, ${project.metrics.ciudad}` : ''}
+                    </p>
+                  )}
+
+                  {project.metrics ? (
+                    <div className="space-y-2 mt-4 pt-4 border-t">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-xs text-gray-400">Beneficio</div>
+                          <div className={`font-bold ${project.metrics.beneficioNeto >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {formatCurrency(project.metrics.beneficioNeto)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">Margen</div>
+                          <div className={`font-bold ${getMargenColor(project.metrics.margen)}`}>
+                            {formatPercent(project.metrics.margen)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">ROI</div>
+                          <div className="font-bold text-gray-700">
+                            {formatPercent(project.metrics.roi)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">Inversion</div>
+                          <div className="font-bold text-gray-700">
+                            {formatCurrency(project.metrics.inversionTotal)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-400 mt-4 pt-4 border-t text-center py-2">
+                      Sin datos guardados
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-400 mt-4 pt-3 border-t">
+                    Actualizado: {formatDate(project.updated_at)}
+                  </div>
                 </div>
               </Link>
             ))}
+          </div>
+        ) : (
+          /* List View */
+          <div className="bg-white rounded-xl card-shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Proyecto</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Inversion</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beneficio</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Margen</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">ROI</th>
+                  <th className="text-center px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Estado</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredProjects.map((project) => (
+                  <tr key={project.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <Link href={`/${project.slug}`} className="flex items-center gap-3 group">
+                        <div className="w-10 h-10 bg-gradient-to-br from-lumier-gold to-yellow-600 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                          {project.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-800 group-hover:text-lumier-gold transition-colors">
+                            {project.name}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {project.metrics?.direccion ? `${project.metrics.direccion}${project.metrics.ciudad ? `, ${project.metrics.ciudad}` : ''}` : formatDate(project.updated_at)}
+                          </div>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 text-right hidden md:table-cell">
+                      <span className="font-medium text-gray-700">
+                        {project.metrics ? formatCurrency(project.metrics.inversionTotal) : '-'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className={`font-bold ${project.metrics && project.metrics.beneficioNeto >= 0 ? 'text-green-600' : project.metrics ? 'text-red-500' : 'text-gray-400'}`}>
+                        {project.metrics ? formatCurrency(project.metrics.beneficioNeto) : '-'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className={`font-bold ${getMargenColor(project.metrics?.margen)}`}>
+                        {project.metrics ? formatPercent(project.metrics.margen) : '-'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right hidden lg:table-cell">
+                      <span className="font-medium text-gray-700">
+                        {project.metrics ? formatPercent(project.metrics.roi) : '-'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center hidden lg:table-cell">
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${getMargenBgColor(project.metrics?.margen)} ${getMargenColor(project.metrics?.margen)}`}>
+                        {getMargenLabel(project.metrics?.margen)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/${project.slug}`}
+                          className="p-2 text-gray-400 hover:text-lumier-gold transition-colors"
+                          title="Abrir proyecto"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteProject(project.id, project.name)}
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Eliminar proyecto"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </main>
