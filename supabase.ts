@@ -240,19 +240,23 @@ export function calculateMetricsFromData(data: CalculatorData): ProjectWithMetri
   // Cálculos de adquisición
   const honorarioCompraBase = data.intermediacionCompra ? data.precioCompra * (data.porcentajeIntermediacionCompra / 100) : 0
   const honorarioCompra = honorarioCompraBase * 1.21
-  const inscripcionEscritura = 1530
+  // Inscripción = Notario (145.2€) + Inscripción (0.08% PC) + Registro (0.05% PC)
+  const inscripcionEscritura = 145.2 + data.precioCompra * 0.0008 + data.precioCompra * 0.0005
   const itp = data.precioCompra * 0.02
   const totalAdquisicion = data.precioCompra + honorarioCompra + inscripcionEscritura + itp
 
-  // Cálculos de reforma (hard costs)
-  const costeObraBase: Record<number, number> = { 1: 350, 2: 420, 3: 560, 4: 700, 5: 900 }
-  const obra = data.m2Construidos * (costeObraBase[data.calidad] || 560)
-  const costeCalidadBase: Record<number, number> = { 1: 300, 2: 400, 3: 512, 4: 650, 5: 850 }
-  const calidadCoste = data.m2Construidos * (costeCalidadBase[data.calidad] || 512)
-  const costeInteriorismoBase: Record<number, number> = { 1: 40, 2: 50, 3: 59.1, 4: 75, 5: 95 }
-  const interiorismo = data.m2Construidos * (costeInteriorismoBase[data.calidad] || 59.1) + (data.esClasico ? 790 : 0)
-  const costeMobiliarioBase: Record<number, number> = { 1: 60, 2: 80, 3: 101.7, 4: 130, 5: 170 }
-  const mobiliario = data.m2Construidos * (costeMobiliarioBase[data.calidad] || 101.7)
+  // Hard Costs - €/m2 ajustados según Excel real
+  const costeObraBase: Record<number, number> = { 1: 437, 2: 540, 3: 631, 4: 631, 5: 631 }
+  const obra = data.m2Construidos * (costeObraBase[data.calidad] || 631)
+  const costeCalidadBase: Record<number, number> = { 1: 392, 2: 484, 3: 545, 4: 900, 5: 1149 }
+  const calidadCoste = data.m2Construidos * (costeCalidadBase[data.calidad] || 545)
+  // Interiorismo = 15% del coste de Calidad
+  const interiorismo = calidadCoste * 0.15 + (data.esClasico ? 790 : 0)
+  // Mobiliario: €/m2 base + Logística + Iluminación (11% del base)
+  const costeMobiliarioBase: Record<number, number> = { 1: 27, 2: 36, 3: 86, 4: 108, 5: 146 }
+  const mobiliarioBase = data.m2Construidos * (costeMobiliarioBase[data.calidad] || 86)
+  const logisticaBase: Record<number, number> = { 1: 800, 2: 800, 3: 900, 4: 1600, 5: 1800 }
+  const mobiliario = mobiliarioBase + (logisticaBase[data.calidad] || 900) + mobiliarioBase * 0.11
   const terrazaCost = data.terrazaM2 > 0 ? data.terrazaM2 * 36.5 : 0
   const toldoCost = data.toldoPergola ? 2500 : 0
   const hardCosts = obra + calidadCoste + interiorismo + mobiliario + terrazaCost + toldoCost + (data.extras || 0)
@@ -260,10 +264,10 @@ export function calculateMetricsFromData(data: CalculatorData): ProjectWithMetri
   // Soft costs
   const arquitecturaFija: Record<number, number> = { 1: 3630, 2: 3630, 3: 6050, 4: 12100, 5: 18150 }
   const arquitectura = arquitecturaFija[data.calidad] || 6050
-  const permisoConstruccion = data.m2Construidos * 34.2
+  const permisoConstruccion = data.m2Construidos * 42.21
   const gastosVenta = 800
   const costosTenencia = 2490
-  const plusvalia = data.precioVenta * 0.0027
+  const plusvalia = data.precioVenta * 0.00267
   const softCosts = arquitectura + permisoConstruccion + gastosVenta + costosTenencia + plusvalia
   const totalGastos = hardCosts + softCosts
 
