@@ -1,41 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { TrendingUp, TrendingDown } from "lucide-react"
-
-interface MetricProps {
-  label: string
-  value: string
-  subtitle?: string
-  trend?: "up" | "down" | "neutral"
-}
-
-function Metric({ label, value, subtitle, trend }: MetricProps) {
-  return (
-    <div className="flex flex-col">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex items-baseline gap-1">
-        <span className={cn(
-          "text-base font-semibold tabular-nums",
-          trend === "up" && "text-emerald-600",
-          trend === "down" && "text-rose-500"
-        )}>
-          {value}
-        </span>
-        {trend && trend !== "neutral" && (
-          trend === "up"
-            ? <TrendingUp className="h-3 w-3 text-emerald-600" />
-            : <TrendingDown className="h-3 w-3 text-rose-500" />
-        )}
-      </div>
-      {subtitle && (
-        <span className="text-[10px] text-muted-foreground">{subtitle}</span>
-      )}
-    </div>
-  )
-}
+import { TrendingUp } from "lucide-react"
 
 interface KeyMetricsProps {
   precioCompra: number
@@ -76,72 +42,151 @@ export function KeyMetrics({
   beneficioNeto,
   m2Totales
 }: KeyMetricsProps) {
-  const isViable = margen >= 13
+  const getStatusLabel = () => {
+    if (margen >= 16) return "OPORTUNIDAD"
+    if (margen >= 13) return "AJUSTADO"
+    return "NO HACER"
+  }
 
-  const getTirTrend = (): "up" | "down" | "neutral" => {
-    if (tir >= 30) return "up"
-    if (tir < 20) return "down"
-    return "neutral"
+  const getStatusColor = () => {
+    if (margen >= 16) return "bg-emerald-500"
+    if (margen >= 13) return "bg-amber-500"
+    return "bg-rose-500"
+  }
+
+  const getTirColor = () => {
+    if (tir >= 30) return "text-emerald-600"
+    if (tir >= 20) return "text-amber-600"
+    return "text-foreground"
   }
 
   return (
-    <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <Metric
-            label="Compra"
-            value={formatCurrency(precioCompra)}
-            subtitle={`${formatCurrency(precioCompra / m2Totales)}/m²`}
-          />
-          <Metric
-            label="Venta"
-            value={formatCurrency(precioVenta)}
-            subtitle={`${formatCurrency(precioVenta / m2Totales)}/m²`}
-          />
-          <Metric
-            label="Inversión"
-            value={formatCurrency(inversionTotal)}
-            subtitle={`${formatCurrency(inversionTotal / m2Totales)}/m²`}
-          />
-          <div className="hidden sm:block h-8 w-px bg-border" />
-          <Metric
-            label="ROI"
-            value={formatPercent(roi)}
-          />
-          <Metric
-            label="Margen"
-            value={formatPercent(margen)}
-          />
-          <Metric
-            label="TIR"
-            value={formatPercent(tir)}
-            subtitle={`${mesesProyecto.toFixed(1)} meses`}
-            trend={getTirTrend()}
-          />
+    <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+      {/* Mobile Layout */}
+      <div className="lg:hidden space-y-4">
+        {/* Fila 1: Precios principales */}
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Compra</p>
+            <p className="text-lg font-bold text-foreground tabular-nums">{formatCurrency(precioCompra)}</p>
+            <p className="text-xs text-muted-foreground">{formatCurrency(precioCompra / m2Totales)}/m²</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Venta</p>
+            <p className="text-lg font-bold text-foreground tabular-nums">{formatCurrency(precioVenta)}</p>
+            <p className="text-xs text-muted-foreground">{formatCurrency(precioVenta / m2Totales)}/m²</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Inversión</p>
+            <p className="text-lg font-bold text-foreground tabular-nums">{formatCurrency(inversionTotal)}</p>
+            <p className="text-xs text-muted-foreground">{formatCurrency(inversionTotal / m2Totales)}/m²</p>
+          </div>
         </div>
 
-        <div className={cn(
-          "flex items-center gap-2 rounded-lg px-3 py-2",
-          isViable
-            ? "bg-emerald-50 text-emerald-700"
-            : "bg-rose-50 text-rose-700"
-        )}>
-          <div className="text-right">
-            <p className="text-[10px] font-medium uppercase tracking-wide opacity-70">
-              Beneficio
+        {/* Fila 2: KPIs de rentabilidad */}
+        <div className="grid grid-cols-4 gap-3 pt-3 border-t border-border">
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">ROI</p>
+            <p className="text-base font-semibold tabular-nums">{formatPercent(roi)}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Margen</p>
+            <p className="text-base font-semibold tabular-nums">{formatPercent(margen)}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">TIR</p>
+            <p className={cn("text-base font-semibold tabular-nums flex items-center justify-center gap-1", getTirColor())}>
+              {formatPercent(tir)}
+              {tir >= 30 && <TrendingUp className="h-3.5 w-3.5" />}
             </p>
-            <p className="text-lg font-bold tabular-nums">
+            <p className="text-[10px] text-muted-foreground">{mesesProyecto.toFixed(1)} meses</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Beneficio</p>
+            <p className={cn(
+              "text-base font-bold tabular-nums",
+              beneficioNeto >= 0 ? "text-emerald-600" : "text-rose-500"
+            )}>
               {formatCurrency(beneficioNeto)}
             </p>
           </div>
-          <div className={cn(
-            "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
-            margen >= 16 ? "bg-emerald-600 text-white" :
-            margen >= 13 ? "bg-amber-500 text-white" :
-            "bg-rose-600 text-white"
+        </div>
+
+        {/* Fila 3: Badge de estado */}
+        <div className="flex justify-center">
+          <span className={cn(
+            "px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-wide",
+            getStatusColor()
           )}>
-            {margen >= 16 ? "Viable" : margen >= 13 ? "Ajustado" : "No Hacer"}
+            {getStatusLabel()}
+          </span>
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden lg:flex items-center justify-between gap-8">
+        {/* Grupo izquierdo: Precios */}
+        <div className="flex items-center gap-8">
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Compra</p>
+            <p className="text-xl font-bold text-foreground tabular-nums">{formatCurrency(precioCompra)}</p>
+            <p className="text-sm text-muted-foreground">{formatCurrency(precioCompra / m2Totales)}/m²</p>
           </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Venta</p>
+            <p className="text-xl font-bold text-foreground tabular-nums">{formatCurrency(precioVenta)}</p>
+            <p className="text-sm text-muted-foreground">{formatCurrency(precioVenta / m2Totales)}/m²</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Inversión</p>
+            <p className="text-xl font-bold text-foreground tabular-nums">{formatCurrency(inversionTotal)}</p>
+            <p className="text-sm text-muted-foreground">{formatCurrency(inversionTotal / m2Totales)}/m²</p>
+          </div>
+        </div>
+
+        {/* Separador */}
+        <div className="h-12 w-px bg-border" />
+
+        {/* Grupo central: KPIs */}
+        <div className="flex items-center gap-8">
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">ROI</p>
+            <p className="text-xl font-semibold tabular-nums">{formatPercent(roi)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Margen</p>
+            <p className="text-xl font-semibold tabular-nums">{formatPercent(margen)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">TIR</p>
+            <p className={cn("text-xl font-semibold tabular-nums flex items-center gap-1", getTirColor())}>
+              {formatPercent(tir)}
+              {tir >= 30 && <TrendingUp className="h-4 w-4" />}
+            </p>
+            <p className="text-xs text-muted-foreground">{mesesProyecto.toFixed(1)} meses</p>
+          </div>
+        </div>
+
+        {/* Grupo derecho: Beneficio y Estado */}
+        <div className={cn(
+          "flex items-center gap-3 rounded-xl px-5 py-3 ml-auto",
+          beneficioNeto >= 0 ? "bg-emerald-50" : "bg-rose-50"
+        )}>
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Beneficio</p>
+            <p className={cn(
+              "text-2xl font-bold tabular-nums",
+              beneficioNeto >= 0 ? "text-emerald-600" : "text-rose-600"
+            )}>
+              {formatCurrency(beneficioNeto)}
+            </p>
+          </div>
+          <span className={cn(
+            "px-2.5 py-1 rounded text-[10px] font-bold text-white uppercase tracking-wider",
+            getStatusColor()
+          )}>
+            {getStatusLabel()}
+          </span>
         </div>
       </div>
     </div>
