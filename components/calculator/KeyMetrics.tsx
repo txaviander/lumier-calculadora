@@ -12,13 +12,13 @@ interface MetricProps {
 
 function Metric({ label, value, subtitle, trend }: MetricProps) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="flex flex-col">
+      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <div className="flex items-baseline gap-1.5">
+      <div className="flex items-baseline gap-1">
         <span className={cn(
-          "text-lg font-semibold tabular-nums",
+          "text-base font-semibold tabular-nums",
           trend === "up" && "text-emerald-600",
           trend === "down" && "text-rose-500"
         )}>
@@ -26,12 +26,12 @@ function Metric({ label, value, subtitle, trend }: MetricProps) {
         </span>
         {trend && trend !== "neutral" && (
           trend === "up"
-            ? <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-            : <TrendingDown className="h-3.5 w-3.5 text-rose-500" />
+            ? <TrendingUp className="h-3 w-3 text-emerald-600" />
+            : <TrendingDown className="h-3 w-3 text-rose-500" />
         )}
       </div>
       {subtitle && (
-        <span className="text-[11px] text-muted-foreground">{subtitle}</span>
+        <span className="text-[10px] text-muted-foreground">{subtitle}</span>
       )}
     </div>
   )
@@ -85,60 +85,63 @@ export function KeyMetrics({
   }
 
   return (
-    <div className="mt-6 flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4">
-      <div className="flex flex-wrap gap-x-8 gap-y-4">
-        <Metric
-          label="Compra"
-          value={formatCurrency(precioCompra)}
-          subtitle={`${formatCurrency(precioCompra / m2Totales)}/m2`}
-        />
-        <Metric
-          label="Venta"
-          value={formatCurrency(precioVenta)}
-          subtitle={`${formatCurrency(precioVenta / m2Totales)}/m2`}
-        />
-        <Metric
-          label="Inversion Total"
-          value={formatCurrency(inversionTotal)}
-          subtitle={`${formatCurrency(inversionTotal / m2Totales)}/m2`}
-        />
-        <Metric
-          label="ROI"
-          value={formatPercent(roi)}
-          trend="neutral"
-        />
-        <Metric
-          label="Margen"
-          value={formatPercent(margen)}
-          trend="neutral"
-        />
-        <Metric
-          label="TIR Anual"
-          value={formatPercent(tir)}
-          subtitle={`${mesesProyecto.toFixed(1)} meses`}
-          trend={getTirTrend()}
-        />
-      </div>
-
-      <div className={cn(
-        "flex items-center gap-3 rounded-lg px-4 py-2.5",
-        isViable
-          ? "bg-emerald-50 text-emerald-700"
-          : "bg-rose-50 text-rose-700"
-      )}>
-        <div className="text-right">
-          <p className="text-[11px] font-medium uppercase tracking-wide opacity-70">
-            Beneficio Neto
-          </p>
-          <p className="text-xl font-bold tabular-nums">
-            {formatCurrency(beneficioNeto)}
-          </p>
+    <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <Metric
+            label="Compra"
+            value={formatCurrency(precioCompra)}
+            subtitle={`${formatCurrency(precioCompra / m2Totales)}/m²`}
+          />
+          <Metric
+            label="Venta"
+            value={formatCurrency(precioVenta)}
+            subtitle={`${formatCurrency(precioVenta / m2Totales)}/m²`}
+          />
+          <Metric
+            label="Inversión"
+            value={formatCurrency(inversionTotal)}
+            subtitle={`${formatCurrency(inversionTotal / m2Totales)}/m²`}
+          />
+          <div className="hidden sm:block h-8 w-px bg-border" />
+          <Metric
+            label="ROI"
+            value={formatPercent(roi)}
+          />
+          <Metric
+            label="Margen"
+            value={formatPercent(margen)}
+          />
+          <Metric
+            label="TIR"
+            value={formatPercent(tir)}
+            subtitle={`${mesesProyecto.toFixed(1)} meses`}
+            trend={getTirTrend()}
+          />
         </div>
+
         <div className={cn(
-          "rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider",
-          isViable ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
+          "flex items-center gap-2 rounded-lg px-3 py-2",
+          isViable
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-rose-50 text-rose-700"
         )}>
-          {margen >= 16 ? "Viable" : margen >= 13 ? "Ajustado" : "No Hacer"}
+          <div className="text-right">
+            <p className="text-[10px] font-medium uppercase tracking-wide opacity-70">
+              Beneficio
+            </p>
+            <p className="text-lg font-bold tabular-nums">
+              {formatCurrency(beneficioNeto)}
+            </p>
+          </div>
+          <div className={cn(
+            "rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+            margen >= 16 ? "bg-emerald-600 text-white" :
+            margen >= 13 ? "bg-amber-500 text-white" :
+            "bg-rose-600 text-white"
+          )}>
+            {margen >= 16 ? "Viable" : margen >= 13 ? "Ajustado" : "No Hacer"}
+          </div>
         </div>
       </div>
     </div>
