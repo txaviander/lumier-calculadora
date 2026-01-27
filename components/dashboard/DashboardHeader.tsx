@@ -1,15 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
 
 interface DashboardHeaderProps {
   onMenuClick: () => void
+  onToggleCollapse: () => void
+  sidebarCollapsed: boolean
+  title?: string
 }
 
-export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
+export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapsed, title }: DashboardHeaderProps) {
   const { user, signOut } = useAuth()
   const [showUserMenu, setShowUserMenu] = useState(false)
 
@@ -31,26 +32,47 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
       {/* Left Section */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {/* Mobile menu button */}
         <button
           onClick={onMenuClick}
           className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Panel Principal</h2>
-        </div>
+
+        {/* Desktop collapse button */}
+        <button
+          onClick={onToggleCollapse}
+          className="hidden lg:flex p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
+        >
+          <svg
+            className={`w-5 h-5 text-gray-600 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Page title - only show in header if provided */}
+        {title && (
+          <div className="hidden sm:block">
+            <h2 className="text-base font-medium text-gray-900">{title}</h2>
+          </div>
+        )}
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Notifications */}
         <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
         </button>
@@ -86,7 +108,7 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
               />
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border z-50 overflow-hidden">
                 <div className="p-3 border-b bg-gray-50">
-                  <div className="font-medium text-gray-800">
+                  <div className="font-medium text-gray-800 text-sm">
                     {user?.user_metadata?.full_name || 'Usuario'}
                   </div>
                   <div className="text-xs text-gray-500 truncate">
