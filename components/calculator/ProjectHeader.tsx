@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Save, Share2, Printer, History } from "lucide-react"
+import { Save, Share2, Printer, History, SendHorizonal } from "lucide-react"
 
 interface ProjectHeaderProps {
   title: string
@@ -10,8 +10,11 @@ interface ProjectHeaderProps {
   onShare: () => void
   onPrint: () => void
   onVersionHistory?: () => void
+  onSubmitToCI?: () => void
   hasChanges?: boolean
   saving?: boolean
+  submittingToCI?: boolean
+  isSubmittedToCI?: boolean
 }
 
 export function ProjectHeader({
@@ -21,8 +24,11 @@ export function ProjectHeader({
   onShare,
   onPrint,
   onVersionHistory,
+  onSubmitToCI,
   hasChanges,
-  saving
+  saving,
+  submittingToCI,
+  isSubmittedToCI
 }: ProjectHeaderProps) {
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -68,6 +74,32 @@ export function ProjectHeader({
           <Save className="h-3.5 w-3.5" />
           <span>{saving ? 'Guardando...' : 'Guardar'}</span>
         </Button>
+
+        {onSubmitToCI && !isSubmittedToCI && (
+          <>
+            <div className="h-4 w-px bg-border" />
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={onSubmitToCI}
+              disabled={submittingToCI || hasChanges}
+              title={hasChanges ? 'Guarda los cambios primero' : 'Enviar al Comité de Inversión'}
+            >
+              <SendHorizonal className="h-3.5 w-3.5" />
+              <span>{submittingToCI ? 'Enviando...' : 'Presentar al CI'}</span>
+            </Button>
+          </>
+        )}
+
+        {isSubmittedToCI && (
+          <>
+            <div className="h-4 w-px bg-border" />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-100 text-emerald-800 text-sm font-medium">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+              Presentado al CI
+            </span>
+          </>
+        )}
       </div>
     </header>
   )

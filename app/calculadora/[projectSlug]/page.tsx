@@ -23,8 +23,10 @@ import {
   TransactionCard,
   RenovationModule,
   ProfitLossSummary,
-  SensitivityMatrix
+  SensitivityMatrix,
+  SubmitToCIModal
 } from '@/components/calculator'
+import { supabase } from '@/lib/supabase'
 import { ChevronDown, ChevronUp, Pencil, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -155,6 +157,10 @@ function CalculatorContent() {
   const [hasChanges, setHasChanges] = useState(false)
   const [nuevoComentario, setNuevoComentario] = useState('')
   const [isEditMode, setIsEditMode] = useState(false)
+  const [showSubmitCIModal, setShowSubmitCIModal] = useState(false)
+  const [submittingToCI, setSubmittingToCI] = useState(false)
+  const [isSubmittedToCI, setIsSubmittedToCI] = useState(false)
+  const [projectV2Id, setProjectV2Id] = useState<string | null>(null)
 
   // Cargar proyecto y versiones
   useEffect(() => {
@@ -188,6 +194,18 @@ function CalculatorContent() {
             setData(prev => ({ ...prev, direccion: projectData.name }))
           }
         }
+
+        // Verificar si ya existe en projects_v2 (presentado al CI)
+        const { data: existingProject } = await supabase
+          .from('projects_v2')
+          .select('project_id, status')
+          .eq('property_address', projectData.name)
+          .maybeSingle()
+
+        if (existingProject) {
+          setProjectV2Id(existingProject.project_id)
+          setIsSubmittedToCI(true)
+        }
       } catch (error) {
         console.error('Error loading project:', error)
       } finally {
@@ -197,6 +215,63 @@ function CalculatorContent() {
 
     loadProject()
   }, [projectSlug])
+
+  // Función para enviar al Comité de Inversión
+  const handleSubmitToCI = async () => {
+    if (!project || !user) return
+
+    setSubmittingToCI(true)
+    try {
+      // Calcular el tipo de renovación basado en la calidad
+      const renovationTypeMap: Record<number, 'basica' | 'media' | 'integral' | 'lujo'> = {
+        1: 'basica',
+        2: 'media',
+        3: 'integral',
+        4: 'integral',
+        5: 'lujo'
+      }
+
+      // Preparar los datos para projects_v2
+      const projectData = {
+        status: 'oportunidad' as const,
+        property_address: data.direccion || project.name,
+        property_city: data.ciudad || 'Madrid',
+        property_size_m2: calculations.m2Totales,
+        property_bedrooms: data.habitaciones,
+        property_bathrooms: data.banos,
+        purchase_price: data.precioCompra,
+        estimated_sale_price: data.precioVenta,
+        estimated_renovation_cost: calculations.totalGastos,
+        gross_margin_amount: calculations.beneficioNeto,
+        gross_margin_percentage: calculations.margen,
+        net_margin_amount: calculations.beneficioNeto,
+        net_margin_percentage: calculations.margen,
+        roi_percentage: calculations.roi,
+        renovation_type: renovationTypeMap[data.calidad] || 'integral',
+        target_completion_months: Math.ceil(calculations.mesesProyecto),
+        commercial_user_id: user.id,
+        created_by_user_id: user.id,
+        notes: `Proyecto calculado desde la herramienta de estimación. Versión: ${activeVersionData?.version_name || 'Sin versión'}`
+      }
+
+      const { data: newProject, error } = await supabase
+        .from('projects_v2')
+        .insert(projectData)
+        .select('project_id')
+        .single()
+
+      if (error) throw error
+
+      setProjectV2Id(newProject.project_id)
+      setIsSubmittedToCI(true)
+      setShowSubmitCIModal(false)
+    } catch (error) {
+      console.error('Error submitting to CI:', error)
+      throw new Error('No se pudo enviar al Comité de Inversión. Por favor, intenta de nuevo.')
+    } finally {
+      setSubmittingToCI(false)
+    }
+  }
 
   // Detectar cambios
   const updateField = useCallback(<K extends keyof CalculatorData>(field: K, value: CalculatorData[K]) => {
@@ -460,8 +535,11 @@ function CalculatorContent() {
             onShare={copyShareUrl}
             onPrint={() => window.print()}
             onVersionHistory={() => setShowVersionModal(true)}
+            onSubmitToCI={() => setShowSubmitCIModal(true)}
             hasChanges={hasChanges}
             saving={saving}
+            submittingToCI={submittingToCI}
+            isSubmittedToCI={isSubmittedToCI}
           />
 
           {/* Toggle Edit/View Mode */}
@@ -718,6 +796,23 @@ function CalculatorContent() {
           </div>
         </div>
       )}
+
+      {/* Modal enviar al CI */}
+      <SubmitToCIModal
+        isOpen={showSubmitCIModal}
+        onClose={() => setShowSubmitCIModal(false)}
+        onConfirm={handleSubmitToCI}
+        projectData={{
+          direccion: data.direccion || project?.name || 'Sin dirección',
+          ciudad: data.ciudad,
+          m2Totales: calculations.m2Totales,
+          precioCompra: data.precioCompra,
+          precioVenta: data.precioVenta,
+          margen: calculations.margen,
+          roi: calculations.roi,
+          beneficioNeto: calculations.beneficioNeto
+        }}
+      />
     </DashboardLayout>
   )
 }
