@@ -5,3 +5,6 @@ export { TransactionCard } from './TransactionCard'
 export { RenovationModule } from './RenovationModule'
 export { ProfitLossSummary } from './ProfitLossSummary'
 export { SensitivityMatrix } from './SensitivityMatrix'
+
+// Wizard components (Sprint 1)
+export { CalculatorWizard, StepIndicator } from './wizard'

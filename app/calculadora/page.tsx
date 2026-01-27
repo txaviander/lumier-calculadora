@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { DashboardLayout } from '@/components/dashboard'
 import { ProjectWithMetrics, getProjectsWithMetrics, createProject, deleteProject } from '@/lib/supabase'
@@ -19,6 +20,7 @@ export default function CalculadoraPage() {
 }
 
 function CalculadoraContent() {
+  const searchParams = useSearchParams()
   const [projects, setProjects] = useState<ProjectWithMetrics[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewProject, setShowNewProject] = useState(false)
@@ -29,6 +31,17 @@ function CalculadoraContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('updated')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [showSuccess, setShowSuccess] = useState(false)
+
+  // Mostrar mensaje de éxito si viene del wizard
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      setShowSuccess(true)
+      // Ocultar después de 5 segundos
+      const timer = setTimeout(() => setShowSuccess(false), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     loadProjects()
@@ -207,18 +220,46 @@ function CalculadoraContent() {
       title="Calculadora de Oportunidades"
       subtitle="Gestiona los análisis de rentabilidad de tus proyectos inmobiliarios"
     >
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-green-800 font-medium">¡Oportunidad creada correctamente!</span>
+          </div>
+          <button onClick={() => setShowSuccess(false)} className="text-green-600 hover:text-green-800">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div></div>
-        <button
-          onClick={() => setShowNewProject(true)}
-          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Nuevo Proyecto
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowNewProject(true)}
+            className="flex items-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg font-medium transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Proyecto Rápido
+          </button>
+          <Link
+            href="/calculadora/nueva"
+            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            Nueva Oportunidad
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
