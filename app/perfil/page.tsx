@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { DashboardLayout } from '@/components/dashboard'
-import { useUserProfile, useUserMutations, roleLabels, roleColors } from '@/hooks'
+import { useUserProfile, useUserMutations } from '@/hooks'
 import { UserAvatar, RoleBadge } from '@/components/users'
+import { supabase } from '@/lib/supabase'
 import {
   User,
   Mail,
@@ -14,7 +15,9 @@ import {
   Save,
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  Upload
 } from 'lucide-react'
 
 export default function PerfilPage() {
@@ -35,16 +38,19 @@ function PerfilContent() {
   })
   const [isEditing, setIsEditing] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Sincronizar formData cuando se carga el perfil
-  useState(() => {
+  useEffect(() => {
     if (profile) {
       setFormData({
         full_name: profile.full_name || '',
         phone: profile.phone || ''
       })
     }
-  })
+  }, [profile])
 
   const handleStartEdit = () => {
     if (profile) {
@@ -83,6 +89,77 @@ function PerfilContent() {
     } catch (err) {
       console.error('Error saving profile:', err)
       setSaveStatus('error')
+    }
+  }
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Por favor selecciona una imagen válida')
+      return
+    }
+
+    // Validar tamaño (máx 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError('La imagen debe ser menor a 2MB')
+      return
+    }
+
+    setUploadingAvatar(true)
+    setAvatarError(null)
+
+    try {
+      // Crear nombre único para el archivo
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${profile.id}-${Date.now()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      // Subir a Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) {
+        // Si el bucket no existe, intentar crear uno público
+        if (uploadError.message.includes('not found')) {
+          setAvatarError('El almacenamiento no está configurado. Contacta al administrador.')
+          return
+        }
+        throw uploadError
+      }
+
+      // Obtener URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      // Actualizar perfil con nueva URL
+      await updateCurrentUserProfile({
+        avatar_url: publicUrl
+      })
+
+      await refetch()
+      setSaveStatus('success')
+      setTimeout(() => setSaveStatus('idle'), 3000)
+    } catch (err) {
+      console.error('Error uploading avatar:', err)
+      setAvatarError('Error al subir la imagen. Inténtalo de nuevo.')
+    } finally {
+      setUploadingAvatar(false)
+      // Limpiar input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -152,12 +229,35 @@ function PerfilContent() {
           <div className="bg-gradient-to-r from-gray-800 to-gray-900 h-24" />
           <div className="px-6 pb-6">
             <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
-              <UserAvatar
-                name={profile.full_name}
-                avatarUrl={profile.avatar_url}
-                size="xl"
-                className="ring-4 ring-white w-24 h-24 text-2xl"
-              />
+              {/* Avatar con opción de cambiar */}
+              <div className="relative group">
+                <UserAvatar
+                  name={profile.full_name}
+                  avatarUrl={profile.avatar_url}
+                  size="xl"
+                  className="ring-4 ring-white w-24 h-24 text-2xl"
+                />
+                <button
+                  onClick={handleAvatarClick}
+                  disabled={uploadingAvatar}
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-not-allowed"
+                  title="Cambiar foto"
+                >
+                  {uploadingAvatar ? (
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  ) : (
+                    <Camera className="w-6 h-6 text-white" />
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </div>
+
               <div className="flex-1 pt-2 sm:pt-0 sm:pb-2">
                 <h2 className="text-2xl font-bold text-gray-900">
                   {profile.full_name || 'Sin nombre'}
@@ -170,6 +270,9 @@ function PerfilContent() {
                     </span>
                   )}
                 </div>
+                {avatarError && (
+                  <p className="text-sm text-red-500 mt-2">{avatarError}</p>
+                )}
               </div>
               <div>
                 {!isEditing ? (
@@ -209,6 +312,12 @@ function PerfilContent() {
                 )}
               </div>
             </div>
+
+            {/* Hint para cambiar avatar */}
+            <p className="text-xs text-gray-400 mt-4 flex items-center gap-1">
+              <Upload className="w-3 h-3" />
+              Pasa el cursor sobre la foto para cambiarla (máx. 2MB)
+            </p>
           </div>
         </div>
 
