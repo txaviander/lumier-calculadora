@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { DashboardSidebar } from './DashboardSidebar'
-import { DashboardHeader } from './DashboardHeader'
+import { DashboardHeader, BreadcrumbItem } from './DashboardHeader'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
   title?: string
   subtitle?: string
+  breadcrumbs?: BreadcrumbItem[]
+  fullWidth?: boolean
 }
 
-export function DashboardLayout({ children, title, subtitle }: DashboardLayoutProps) {
+export function DashboardLayout({ children, title, subtitle, breadcrumbs, fullWidth = false }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -48,15 +50,15 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
           onMenuClick={() => setSidebarOpen(true)}
           onToggleCollapse={toggleSidebarCollapsed}
           sidebarCollapsed={sidebarCollapsed}
-          title={title}
+          breadcrumbs={breadcrumbs}
         />
 
         {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8">
-          <div className="max-w-[1400px] mx-auto">
+        <main className="flex-1">
+          <div className={fullWidth ? 'p-6 lg:p-8' : 'max-w-[1400px] mx-auto p-6 lg:p-8'}>
             {/* Page Header */}
             {title && (
-              <div className="mb-8">
+              <div className="mb-6">
                 <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
                   {title}
                 </h1>

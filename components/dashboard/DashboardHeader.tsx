@@ -1,16 +1,22 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
+
+export interface BreadcrumbItem {
+  label: string
+  href?: string
+}
 
 interface DashboardHeaderProps {
   onMenuClick: () => void
   onToggleCollapse: () => void
   sidebarCollapsed: boolean
-  title?: string
+  breadcrumbs?: BreadcrumbItem[]
 }
 
-export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapsed, title }: DashboardHeaderProps) {
+export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapsed, breadcrumbs }: DashboardHeaderProps) {
   const { user, signOut } = useAuth()
   const [showUserMenu, setShowUserMenu] = useState(false)
 
@@ -30,9 +36,9 @@ export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapse
   }
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
+    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
       {/* Left Section */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Mobile menu button */}
         <button
           onClick={onMenuClick}
@@ -50,20 +56,42 @@ export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapse
           title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
         >
           <svg
-            className={`w-5 h-5 text-gray-600 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`}
+            className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
 
-        {/* Page title - only show in header if provided */}
-        {title && (
-          <div className="hidden sm:block">
-            <h2 className="text-base font-medium text-gray-900">{title}</h2>
-          </div>
+        {/* Breadcrumbs */}
+        {breadcrumbs && breadcrumbs.length > 0 && (
+          <nav className="flex items-center">
+            <ol className="flex items-center gap-1">
+              {breadcrumbs.map((item, index) => (
+                <li key={index} className="flex items-center">
+                  {index > 0 && (
+                    <svg className="w-4 h-4 text-gray-300 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  )}
+                  {item.href ? (
+                    <Link
+                      href={item.href}
+                      className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <span className="text-sm font-medium text-gray-900">
+                      {item.label}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
         )}
       </div>
 
@@ -71,7 +99,7 @@ export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapse
       <div className="flex items-center gap-2">
         {/* Notifications */}
         <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
@@ -81,7 +109,7 @@ export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapse
         <div className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 pr-3 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex items-center gap-2 p-1.5 pr-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             {user?.user_metadata?.avatar_url ? (
               <img
@@ -94,7 +122,7 @@ export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapse
                 {getInitials(user?.user_metadata?.full_name, user?.email)}
               </div>
             )}
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>

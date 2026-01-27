@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams } from 'next/navigation'
-import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import { DashboardLayout } from '@/components/dashboard'
 import { useAuth } from '@/components/AuthProvider'
 import {
   Project,
@@ -374,20 +374,27 @@ function CalculatorContent() {
     alert('URL copiada al portapapeles')
   }
 
+  // Breadcrumbs para navegacion
+  const breadcrumbs = [
+    { label: 'Calculadora', href: '/calculadora' },
+    { label: data.direccion || project?.name || 'Proyecto' }
+  ]
+
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lumier-gold"></div>
-      </div>
+      <DashboardLayout breadcrumbs={[{ label: 'Calculadora', href: '/calculadora' }, { label: 'Cargando...' }]} fullWidth>
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lumier-gold"></div>
+        </div>
+      </DashboardLayout>
     )
   }
 
   // Not found
   if (notFound) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <DashboardLayout breadcrumbs={[{ label: 'Calculadora', href: '/calculadora' }, { label: 'No encontrado' }]} fullWidth>
         <div className="flex flex-col items-center justify-center py-20">
           <div className="text-6xl mb-4">404</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Proyecto no encontrado</h1>
@@ -396,24 +403,31 @@ function CalculatorContent() {
             Volver a proyectos
           </a>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
   const projectTitle = `Analisis Proyecto: ${data.direccion || project?.name} - ${data.planta}`
 
   return (
-    <div className="min-h-screen pb-12">
-      {/* Header sticky con metricas - colapsable en mobile */}
-      <div className="bg-lumier-black text-white sticky top-0 z-50 no-print">
-        {/* Barra superior con boton volver y colapsar */}
+    <DashboardLayout breadcrumbs={breadcrumbs} fullWidth>
+      {/* Header con metricas - colapsable en mobile */}
+      <div className="bg-lumier-black text-white sticky top-14 z-40 no-print -mx-6 lg:-mx-8 -mt-6 lg:-mt-8">
+        {/* Barra superior con colapsar */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-white border-opacity-20">
-          <a href="/calculadora" className="flex items-center gap-2 text-white hover:text-lumier-gold transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          <div className="flex items-center gap-3">
+            <svg viewBox="0 0 280 60" className="h-7 hidden sm:block" style={{width: 'auto'}}>
+              <defs>
+                <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style={{stopColor: '#d4af37'}} />
+                  <stop offset="50%" style={{stopColor: '#f4e4bc'}} />
+                  <stop offset="100%" style={{stopColor: '#d4af37'}} />
+                </linearGradient>
+              </defs>
+              <text x="140" y="28" textAnchor="middle" fill="white" style={{fontFamily: "'Playfair Display', Georgia, serif", fontSize: '28px', fontWeight: 600, letterSpacing: '0.2em'}}>LUMIER</text>
+              <text x="140" y="45" textAnchor="middle" fill="white" style={{fontFamily: "'Inter', sans-serif", fontSize: '8px', fontWeight: 300, letterSpacing: '0.35em', opacity: 0.9}}>CASAS BOUTIQUE</text>
             </svg>
-            <span className="text-sm font-medium hidden sm:inline">Volver a proyectos</span>
-          </a>
+          </div>
           <button
             onClick={() => setHeaderCollapsed(!headerCollapsed)}
             className="lg:hidden flex items-center gap-1 text-xs text-white/70 hover:text-white px-2 py-1 rounded bg-white/10"
@@ -423,17 +437,6 @@ function CalculatorContent() {
             </svg>
             {headerCollapsed ? 'Expandir' : 'Colapsar'}
           </button>
-          <svg viewBox="0 0 280 60" className="h-8 hidden sm:block" style={{width: 'auto'}}>
-            <defs>
-              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style={{stopColor: '#d4af37'}} />
-                <stop offset="50%" style={{stopColor: '#f4e4bc'}} />
-                <stop offset="100%" style={{stopColor: '#d4af37'}} />
-              </linearGradient>
-            </defs>
-            <text x="140" y="28" textAnchor="middle" fill="white" style={{fontFamily: "'Playfair Display', Georgia, serif", fontSize: '28px', fontWeight: 600, letterSpacing: '0.2em'}}>LUMIER</text>
-            <text x="140" y="45" textAnchor="middle" fill="white" style={{fontFamily: "'Inter', sans-serif", fontSize: '8px', fontWeight: 300, letterSpacing: '0.35em', opacity: 0.9}}>CASAS BOUTIQUE</text>
-          </svg>
         </div>
 
         {/* Contenido colapsable del header */}
@@ -495,7 +498,7 @@ function CalculatorContent() {
       </div>
 
       {/* Barra de Versiones */}
-      <div className="bg-gray-100 border-b border-gray-200 sticky top-[140px] z-40 no-print">
+      <div className="bg-gray-100 border-b border-gray-200 sticky top-[200px] z-30 no-print -mx-6 lg:-mx-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 py-2 overflow-x-auto">
             {versions.map((version) => (
@@ -786,7 +789,7 @@ function CalculatorContent() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 
