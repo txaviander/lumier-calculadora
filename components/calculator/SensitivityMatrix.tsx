@@ -14,41 +14,67 @@ export function SensitivityMatrix({
   baseVenta,
   totalGastos
 }: SensitivityMatrixProps) {
-  // Generate price variations
-  const compraVariations = [-10, -5, 0, 5, 10].map(pct =>
-    Math.round(baseCompra * (1 + pct / 100))
-  )
+  // Variaciones: -10%, -5%, 0% (actual), +5%, +10%
+  const variations = [-10, -5, 0, 5, 10]
 
-  const ventaVariations = [15, 10, 5, 0, -5, -10].map(pct =>
-    Math.round(baseVenta * (1 + pct / 100))
-  )
+  // Generar precios de compra (filas)
+  const compraVariations = variations.map(pct => ({
+    pct,
+    value: Math.round(baseCompra * (1 + pct / 100))
+  }))
 
-  // Calculate margin for each combination
+  // Generar precios de venta (columnas)
+  const ventaVariations = variations.map(pct => ({
+    pct,
+    value: Math.round(baseVenta * (1 + pct / 100))
+  }))
+
+  // Calcular margen para cada combinación
   const calculateMargin = (compra: number, venta: number) => {
     const totalInversion = compra + totalGastos
     const beneficio = venta - totalInversion
-    const margen = (beneficio / totalInversion) * 100
-    return { beneficio, margen }
+    const margen = (beneficio / venta) * 100
+    return margen
   }
 
-  // Get color based on margin
-  const getMarginColor = (margen: number) => {
-    if (margen >= 15) return "bg-emerald-500 text-white"
-    if (margen >= 10) return "bg-emerald-400 text-white"
-    if (margen >= 5) return "bg-emerald-300 text-emerald-900"
-    if (margen >= 0) return "bg-amber-200 text-amber-900"
-    if (margen >= -5) return "bg-orange-300 text-orange-900"
-    if (margen >= -10) return "bg-rose-400 text-white"
-    return "bg-rose-600 text-white"
-  }
+  // Colores más neutros basados en el margen
+  const getMarginStyle = (margen: number, isCurrentScenario: boolean) => {
+    let bgColor = ""
+    let textColor = "text-gray-700"
 
-  // Check if this is the base case
-  const isBaseCase = (compra: number, venta: number) => {
-    return compra === baseCompra && venta === baseVenta
+    if (margen >= 16) {
+      bgColor = "bg-emerald-100"
+      textColor = "text-emerald-800"
+    } else if (margen >= 13) {
+      bgColor = "bg-emerald-50"
+      textColor = "text-emerald-700"
+    } else if (margen >= 10) {
+      bgColor = "bg-lime-50"
+      textColor = "text-lime-700"
+    } else if (margen >= 5) {
+      bgColor = "bg-amber-50"
+      textColor = "text-amber-700"
+    } else if (margen >= 0) {
+      bgColor = "bg-orange-50"
+      textColor = "text-orange-700"
+    } else {
+      bgColor = "bg-red-50"
+      textColor = "text-red-700"
+    }
+
+    return { bgColor, textColor }
   }
 
   const formatPrice = (value: number) => {
-    return (value / 1000).toLocaleString("es-ES") + "k EUR"
+    if (value >= 1000000) {
+      return (value / 1000000).toLocaleString("es-ES", { maximumFractionDigits: 2 }) + "M"
+    }
+    return (value / 1000).toLocaleString("es-ES", { maximumFractionDigits: 0 }) + "k"
+  }
+
+  const formatPct = (pct: number) => {
+    if (pct === 0) return "Actual"
+    return (pct > 0 ? "+" : "") + pct + "%"
   }
 
   return (
@@ -56,61 +82,67 @@ export function SensitivityMatrix({
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">Analisis de Sensibilidad</h3>
+          <h3 className="text-sm font-semibold">Matriz de Sensibilidad</h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          Margen segun precio de compra y venta
+          Margen según precio de compra y venta
         </p>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="p-2 text-[10px] uppercase tracking-wider text-muted-foreground text-left border-b border-border">
-                <div className="flex flex-col">
-                  <span>Venta &rarr;</span>
-                  <span>Compra &darr;</span>
+              <th className="p-2 text-[10px] uppercase tracking-wider text-muted-foreground text-left">
+                <div className="flex flex-col leading-tight">
+                  <span>Compra ↓</span>
+                  <span>Venta →</span>
                 </div>
               </th>
-              {ventaVariations.map((venta) => (
+              {ventaVariations.map(({ pct, value }) => (
                 <th
-                  key={venta}
+                  key={value}
                   className={cn(
-                    "p-2 text-xs font-medium text-center border-b border-border min-w-[90px]",
-                    venta === baseVenta && "bg-muted/50"
+                    "p-2 text-center min-w-[80px]",
+                    pct === 0 && "bg-muted/30"
                   )}
                 >
-                  {formatPrice(venta)}
+                  <div className="text-[10px] text-muted-foreground">{formatPct(pct)}</div>
+                  <div className="text-xs font-medium">{formatPrice(value)} €</div>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {compraVariations.map((compra) => (
+            {compraVariations.map(({ pct: compraPct, value: compra }) => (
               <tr key={compra}>
                 <td
                   className={cn(
-                    "p-2 text-xs font-medium border-b border-border",
-                    compra === baseCompra && "bg-muted/50"
+                    "p-2 text-left",
+                    compraPct === 0 && "bg-muted/30"
                   )}
                 >
-                  {formatPrice(compra)}
+                  <div className="text-[10px] text-muted-foreground">{formatPct(compraPct)}</div>
+                  <div className="text-xs font-medium">{formatPrice(compra)} €</div>
                 </td>
-                {ventaVariations.map((venta) => {
-                  const { margen } = calculateMargin(compra, venta)
-                  const isBase = isBaseCase(compra, venta)
+                {ventaVariations.map(({ pct: ventaPct, value: venta }) => {
+                  const margen = calculateMargin(compra, venta)
+                  const isCurrentScenario = compraPct === 0 && ventaPct === 0
+                  const { bgColor, textColor } = getMarginStyle(margen, isCurrentScenario)
 
                   return (
                     <td
                       key={`${compra}-${venta}`}
                       className={cn(
-                        "p-2 text-center border-b border-border transition-all",
-                        getMarginColor(margen),
-                        isBase && "ring-2 ring-foreground ring-offset-1"
+                        "p-2 text-center",
+                        bgColor,
+                        isCurrentScenario && "ring-2 ring-inset ring-gray-800"
                       )}
                     >
-                      <span className="text-sm font-semibold tabular-nums">
+                      <span className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        textColor
+                      )}>
                         {margen.toFixed(1)}%
                       </span>
                     </td>
@@ -122,36 +154,28 @@ export function SensitivityMatrix({
         </table>
       </div>
 
-      {/* Legend */}
-      <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-4">
-        <span className="text-xs text-muted-foreground">Leyenda:</span>
+      {/* Leyenda simplificada */}
+      <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center gap-3 text-[10px]">
+        <span className="text-muted-foreground font-medium">Leyenda:</span>
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 rounded bg-emerald-500" />
-          <span className="text-xs text-muted-foreground">{">=15%"}</span>
+          <div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200" />
+          <span className="text-muted-foreground">≥16% Viable</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 rounded bg-emerald-400" />
-          <span className="text-xs text-muted-foreground">10-15%</span>
+          <div className="w-3 h-3 rounded bg-emerald-50 border border-emerald-100" />
+          <span className="text-muted-foreground">13-16% Ajustado</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 rounded bg-emerald-300" />
-          <span className="text-xs text-muted-foreground">5-10%</span>
+          <div className="w-3 h-3 rounded bg-amber-50 border border-amber-100" />
+          <span className="text-muted-foreground">5-13%</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 rounded bg-amber-200" />
-          <span className="text-xs text-muted-foreground">0-5%</span>
+          <div className="w-3 h-3 rounded bg-red-50 border border-red-100" />
+          <span className="text-muted-foreground">&lt;5% Riesgo</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-4 h-4 rounded bg-orange-300" />
-          <span className="text-xs text-muted-foreground">-5-0%</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-4 h-4 rounded bg-rose-600" />
-          <span className="text-xs text-muted-foreground">{"<-10%"}</span>
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <div className="w-4 h-4 rounded ring-2 ring-foreground ring-offset-1 bg-muted" />
-          <span className="text-xs text-muted-foreground">Escenario actual</span>
+        <div className="flex items-center gap-1.5 ml-auto">
+          <div className="w-3 h-3 rounded bg-white ring-2 ring-inset ring-gray-800" />
+          <span className="text-muted-foreground">Escenario actual</span>
         </div>
       </div>
     </div>
