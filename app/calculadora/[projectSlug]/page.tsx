@@ -27,6 +27,7 @@ import {
   SubmitToCIModal
 } from '@/components/calculator'
 import { supabase } from '@/lib/supabase'
+import type { CIStatus } from '@/components/calculator/ProjectHeader'
 import { ChevronDown, ChevronUp, Pencil, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -159,7 +160,9 @@ function CalculatorContent() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [showSubmitCIModal, setShowSubmitCIModal] = useState(false)
   const [submittingToCI, setSubmittingToCI] = useState(false)
-  const [isSubmittedToCI, setIsSubmittedToCI] = useState(false)
+  const [ciStatus, setCIStatus] = useState<CIStatus>('not_submitted')
+  const [ciProjectCode, setCIProjectCode] = useState<string | null>(null)
+  const [ciRejectionReason, setCIRejectionReason] = useState<string | null>(null)
   const [projectV2Id, setProjectV2Id] = useState<string | null>(null)
 
   // Cargar proyecto y versiones
@@ -198,13 +201,15 @@ function CalculatorContent() {
         // Verificar si ya existe en projects_v2 (presentado al CI)
         const { data: existingProject } = await supabase
           .from('projects_v2')
-          .select('project_id, status')
+          .select('project_id, project_code, status, rejection_reason')
           .eq('property_address', projectData.name)
           .maybeSingle()
 
         if (existingProject) {
           setProjectV2Id(existingProject.project_id)
-          setIsSubmittedToCI(true)
+          setCIStatus(existingProject.status as CIStatus)
+          setCIProjectCode(existingProject.project_code)
+          setCIRejectionReason(existingProject.rejection_reason)
         }
       } catch (error) {
         console.error('Error loading project:', error)
@@ -257,13 +262,14 @@ function CalculatorContent() {
       const { data: newProject, error } = await supabase
         .from('projects_v2')
         .insert(projectData)
-        .select('project_id')
+        .select('project_id, project_code')
         .single()
 
       if (error) throw error
 
       setProjectV2Id(newProject.project_id)
-      setIsSubmittedToCI(true)
+      setCIProjectCode(newProject.project_code)
+      setCIStatus('oportunidad')
       setShowSubmitCIModal(false)
     } catch (error) {
       console.error('Error submitting to CI:', error)
@@ -539,7 +545,9 @@ function CalculatorContent() {
             hasChanges={hasChanges}
             saving={saving}
             submittingToCI={submittingToCI}
-            isSubmittedToCI={isSubmittedToCI}
+            ciStatus={ciStatus}
+            ciProjectCode={ciProjectCode}
+            ciRejectionReason={ciRejectionReason}
           />
 
           {/* Toggle Edit/View Mode */}
