@@ -16,12 +16,15 @@ export type UserRole =
   | 'admin'
 
 export type ProjectStatus =
-  | 'oportunidad'
-  | 'aprobado'
-  | 'en_ejecucion'
-  | 'en_venta'
-  | 'vendido'
-  | 'rechazado'
+  | 'oportunidad'           // Presentado al CI, pendiente de decisión
+  | 'rechazado_ci'          // CI rechaza la oportunidad
+  | 'oferta_autorizada'     // CI aprueba, se puede presentar oferta
+  | 'oferta_presentada'     // Oferta enviada al vendedor
+  | 'oferta_rechazada'      // Vendedor rechazó la oferta
+  | 'oferta_aceptada'       // Vendedor aceptó → Proyecto creado
+  | 'en_ejecucion'          // Proyecto en obras
+  | 'en_venta'              // En comercialización
+  | 'vendido'               // Cerrado
 
 export type RenovationType = 'basica' | 'media' | 'integral' | 'lujo'
 
@@ -109,6 +112,12 @@ export interface Project {
   purchase_date: string | null
   renovation_start_date: string | null
   sale_date: string | null
+
+  // Datos de la oferta
+  offer_amount: number | null
+  offer_date: string | null
+  offer_response_date: string | null
+  offer_rejection_reason: string | null
 
   // Metadatos
   notes: string | null

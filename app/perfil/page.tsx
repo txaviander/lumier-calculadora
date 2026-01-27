@@ -226,9 +226,65 @@ function PerfilContent() {
 
         {/* Header Card */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-gray-800 to-gray-900 h-24" />
+          {/* Banner con nombre y botón */}
+          <div className="bg-gradient-to-r from-gray-800 to-gray-900 px-6 pt-6 pb-16">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  {profile.full_name || 'Sin nombre'}
+                </h2>
+                <div className="flex items-center gap-3 mt-2">
+                  <RoleBadge role={profile.role} />
+                  {!profile.is_active && (
+                    <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                      Cuenta inactiva
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
+                {!isEditing ? (
+                  <button
+                    onClick={handleStartEdit}
+                    className="px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                  >
+                    Editar perfil
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCancel}
+                      disabled={saving}
+                      className="px-4 py-2 border border-white/30 text-white rounded-lg hover:bg-white/10 transition-colors font-medium disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Guardar
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Avatar y hint */}
           <div className="px-6 pb-6">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
+            <div className="flex items-end gap-4 -mt-12">
               {/* Avatar con opción de cambiar */}
               <div className="relative group">
                 <UserAvatar
@@ -258,66 +314,17 @@ function PerfilContent() {
                 />
               </div>
 
-              <div className="flex-1 pt-2 sm:pt-0 sm:pb-2">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {profile.full_name || 'Sin nombre'}
-                </h2>
-                <div className="flex items-center gap-3 mt-1">
-                  <RoleBadge role={profile.role} />
-                  {!profile.is_active && (
-                    <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                      Cuenta inactiva
-                    </span>
-                  )}
-                </div>
+              <div className="flex-1 pb-2">
                 {avatarError && (
-                  <p className="text-sm text-red-500 mt-2">{avatarError}</p>
+                  <p className="text-sm text-red-500 mb-1">{avatarError}</p>
                 )}
-              </div>
-              <div>
-                {!isEditing ? (
-                  <button
-                    onClick={handleStartEdit}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
-                  >
-                    Editar perfil
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleCancel}
-                      disabled={saving}
-                      className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Guardando...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          Guardar
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
+                {/* Hint para cambiar avatar */}
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <Upload className="w-3 h-3" />
+                  Pasa el cursor sobre la foto para cambiarla (máx. 2MB)
+                </p>
               </div>
             </div>
-
-            {/* Hint para cambiar avatar */}
-            <p className="text-xs text-gray-400 mt-4 flex items-center gap-1">
-              <Upload className="w-3 h-3" />
-              Pasa el cursor sobre la foto para cambiarla (máx. 2MB)
-            </p>
           </div>
         </div>
 

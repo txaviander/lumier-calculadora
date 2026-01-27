@@ -110,22 +110,57 @@ describe('ProjectHeader', () => {
     })
   })
 
-  describe('CI Status: aprobado', () => {
-    it('shows Aprobado badge', () => {
+  describe('CI Status: oferta_autorizada', () => {
+    it('shows Oferta Autorizada badge', () => {
       render(
         <ProjectHeader
           {...defaultProps}
-          ciStatus="aprobado"
+          ciStatus="oferta_autorizada"
         />
       )
-      expect(screen.getByText('Aprobado')).toBeInTheDocument()
+      expect(screen.getByText('Oferta Autorizada')).toBeInTheDocument()
     })
 
-    it('shows Ver Proyecto link when approved with project code', () => {
+    it('does not show Ver Proyecto link (offer not yet accepted)', () => {
       render(
         <ProjectHeader
           {...defaultProps}
-          ciStatus="aprobado"
+          ciStatus="oferta_autorizada"
+          ciProjectCode="LUM-2025-001"
+        />
+      )
+      expect(screen.queryByText('Ver Proyecto')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('CI Status: oferta_presentada', () => {
+    it('shows Oferta Presentada badge', () => {
+      render(
+        <ProjectHeader
+          {...defaultProps}
+          ciStatus="oferta_presentada"
+        />
+      )
+      expect(screen.getByText('Oferta Presentada')).toBeInTheDocument()
+    })
+  })
+
+  describe('CI Status: oferta_aceptada', () => {
+    it('shows Oferta Aceptada badge', () => {
+      render(
+        <ProjectHeader
+          {...defaultProps}
+          ciStatus="oferta_aceptada"
+        />
+      )
+      expect(screen.getByText('Oferta Aceptada')).toBeInTheDocument()
+    })
+
+    it('shows Ver Proyecto link when offer accepted with project code', () => {
+      render(
+        <ProjectHeader
+          {...defaultProps}
+          ciStatus="oferta_aceptada"
           ciProjectCode="LUM-2025-001"
         />
       )
@@ -133,33 +168,56 @@ describe('ProjectHeader', () => {
     })
   })
 
-  describe('CI Status: rechazado', () => {
-    it('shows Rechazado badge', () => {
+  describe('CI Status: oferta_rechazada', () => {
+    it('shows Oferta Rechazada badge', () => {
       render(
         <ProjectHeader
           {...defaultProps}
-          ciStatus="rechazado"
+          ciStatus="oferta_rechazada"
         />
       )
-      expect(screen.getByText('Rechazado')).toBeInTheDocument()
+      expect(screen.getByText('Oferta Rechazada')).toBeInTheDocument()
+    })
+
+    it('does not show Ver Proyecto link when offer rejected', () => {
+      render(
+        <ProjectHeader
+          {...defaultProps}
+          ciStatus="oferta_rechazada"
+          ciProjectCode="LUM-2025-001"
+        />
+      )
+      expect(screen.queryByText('Ver Proyecto')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('CI Status: rechazado_ci', () => {
+    it('shows Rechazado por CI badge', () => {
+      render(
+        <ProjectHeader
+          {...defaultProps}
+          ciStatus="rechazado_ci"
+        />
+      )
+      expect(screen.getByText('Rechazado por CI')).toBeInTheDocument()
     })
 
     it('shows rejection reason when provided', () => {
       render(
         <ProjectHeader
           {...defaultProps}
-          ciStatus="rechazado"
+          ciStatus="rechazado_ci"
           ciRejectionReason="Margen insuficiente para la zona"
         />
       )
       expect(screen.getByText(/Margen insuficiente para la zona/)).toBeInTheDocument()
     })
 
-    it('does not show Ver Proyecto link when rejected', () => {
+    it('does not show Ver Proyecto link when rejected by CI', () => {
       render(
         <ProjectHeader
           {...defaultProps}
-          ciStatus="rechazado"
+          ciStatus="rechazado_ci"
           ciProjectCode="LUM-2025-001"
         />
       )

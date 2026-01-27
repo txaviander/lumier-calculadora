@@ -4,8 +4,18 @@ import { Button } from "@/components/ui/button"
 import { Save, Share2, Printer, History, SendHorizonal, CheckCircle2, XCircle, Clock, ExternalLink } from "lucide-react"
 import Link from "next/link"
 
-// Estados posibles del proyecto en el CI
-export type CIStatus = 'not_submitted' | 'oportunidad' | 'aprobado' | 'rechazado' | 'en_ejecucion' | 'en_venta' | 'vendido'
+// Estados posibles del proyecto en el pipeline
+export type CIStatus =
+  | 'not_submitted'      // No presentado al CI
+  | 'oportunidad'        // Presentado, pendiente de CI
+  | 'rechazado_ci'       // CI rechazó la oportunidad
+  | 'oferta_autorizada'  // CI aprobó, pendiente de presentar oferta
+  | 'oferta_presentada'  // Oferta enviada al vendedor
+  | 'oferta_rechazada'   // Vendedor rechazó la oferta
+  | 'oferta_aceptada'    // Vendedor aceptó → Proyecto
+  | 'en_ejecucion'       // En obras
+  | 'en_venta'           // En comercialización
+  | 'vendido'            // Cerrado
 
 interface ProjectHeaderProps {
   title: string
@@ -22,6 +32,7 @@ interface ProjectHeaderProps {
   ciStatus?: CIStatus
   ciProjectCode?: string | null
   ciRejectionReason?: string | null
+  offerRejectionReason?: string | null
 }
 
 // Configuración visual para cada estado
@@ -30,56 +41,76 @@ const statusConfig: Record<CIStatus, {
   icon: React.ElementType
   bgColor: string
   textColor: string
-  dotColor: string
+  description?: string
 }> = {
   not_submitted: {
     label: 'Sin presentar',
     icon: Clock,
     bgColor: 'bg-gray-100',
-    textColor: 'text-gray-700',
-    dotColor: 'bg-gray-400'
+    textColor: 'text-gray-700'
   },
   oportunidad: {
     label: 'Pendiente de CI',
     icon: Clock,
     bgColor: 'bg-amber-100',
     textColor: 'text-amber-800',
-    dotColor: 'bg-amber-500'
+    description: 'Esperando decisión del Comité de Inversión'
   },
-  aprobado: {
-    label: 'Aprobado',
-    icon: CheckCircle2,
-    bgColor: 'bg-emerald-100',
-    textColor: 'text-emerald-800',
-    dotColor: 'bg-emerald-500'
-  },
-  rechazado: {
-    label: 'Rechazado',
+  rechazado_ci: {
+    label: 'Rechazado por CI',
     icon: XCircle,
     bgColor: 'bg-rose-100',
     textColor: 'text-rose-800',
-    dotColor: 'bg-rose-500'
+    description: 'El Comité de Inversión no aprobó esta oportunidad'
+  },
+  oferta_autorizada: {
+    label: 'Oferta Autorizada',
+    icon: CheckCircle2,
+    bgColor: 'bg-emerald-100',
+    textColor: 'text-emerald-800',
+    description: 'CI aprobó. Pendiente de presentar oferta al vendedor'
+  },
+  oferta_presentada: {
+    label: 'Oferta Presentada',
+    icon: Clock,
+    bgColor: 'bg-blue-100',
+    textColor: 'text-blue-800',
+    description: 'Esperando respuesta del vendedor'
+  },
+  oferta_rechazada: {
+    label: 'Oferta Rechazada',
+    icon: XCircle,
+    bgColor: 'bg-orange-100',
+    textColor: 'text-orange-800',
+    description: 'El vendedor rechazó la oferta'
+  },
+  oferta_aceptada: {
+    label: 'Oferta Aceptada',
+    icon: CheckCircle2,
+    bgColor: 'bg-emerald-100',
+    textColor: 'text-emerald-800',
+    description: 'El vendedor aceptó. Proyecto en marcha'
   },
   en_ejecucion: {
     label: 'En Ejecución',
     icon: CheckCircle2,
     bgColor: 'bg-blue-100',
     textColor: 'text-blue-800',
-    dotColor: 'bg-blue-500'
+    description: 'Proyecto en fase de obras'
   },
   en_venta: {
     label: 'En Venta',
     icon: CheckCircle2,
     bgColor: 'bg-purple-100',
     textColor: 'text-purple-800',
-    dotColor: 'bg-purple-500'
+    description: 'Proyecto en comercialización'
   },
   vendido: {
     label: 'Vendido',
     icon: CheckCircle2,
     bgColor: 'bg-green-100',
     textColor: 'text-green-800',
-    dotColor: 'bg-green-500'
+    description: 'Proyecto cerrado'
   }
 }
 
@@ -125,7 +156,7 @@ export function ProjectHeader({
         )}
 
         {/* Mostrar razón de rechazo si aplica */}
-        {ciStatus === 'rechazado' && ciRejectionReason && (
+        {ciStatus === 'rechazado_ci' && ciRejectionReason && (
           <div className="mt-2 p-3 bg-rose-50 border border-rose-200 rounded-lg max-w-md">
             <p className="text-sm text-rose-800">
               <strong>Motivo del rechazo:</strong> {ciRejectionReason}
@@ -194,8 +225,8 @@ export function ProjectHeader({
           </>
         )}
 
-        {/* Enlace al proyecto si está aprobado o más allá */}
-        {(ciStatus === 'aprobado' || ciStatus === 'en_ejecucion' || ciStatus === 'en_venta' || ciStatus === 'vendido') && ciProjectCode && (
+        {/* Enlace al proyecto si está aceptado o más allá */}
+        {(ciStatus === 'oferta_aceptada' || ciStatus === 'en_ejecucion' || ciStatus === 'en_venta' || ciStatus === 'vendido') && ciProjectCode && (
           <Link
             href={`/proyectos/${ciProjectCode}`}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
