@@ -391,77 +391,61 @@ function CalculatorContent() {
     planta: data.planta,
     m2Construidos: data.m2Construidos,
     m2ZZCC: data.m2ZZCC,
-    m2Totales: calculations.m2Totales,
     terrazaM2: data.terrazaM2,
     exterior: data.exterior === 'Exterior',
     ascensor: data.ascensor,
     portero: data.portero,
     ite: data.ite,
-    garaje: data.garaje
+    garaje: data.garaje,
+    toldoPergola: data.toldoPergola
   }
 
-  const compraData = {
-    precio: data.precioCompra,
-    fecha: data.fechaCompra,
-    intermediacion: data.intermediacionCompra,
-    porcentajeIntermediacion: data.porcentajeIntermediacionCompra,
-    m2Totales: calculations.m2Totales
-  }
-
-  const ventaData = {
-    precio: data.precioVenta,
-    fecha: data.fechaVenta,
-    intermediacion: data.intermediacionVenta,
-    porcentajeIntermediacion: data.porcentajeIntermediacionVenta,
+  const transactionData = {
+    precioCompra: data.precioCompra,
+    precioVenta: data.precioVenta,
+    fechaCompra: data.fechaCompra,
+    fechaVenta: data.fechaVenta,
+    intermediacionCompra: data.intermediacionCompra,
+    porcentajeIntermediacionCompra: data.porcentajeIntermediacionCompra,
+    intermediacionVenta: data.intermediacionVenta,
+    porcentajeIntermediacionVenta: data.porcentajeIntermediacionVenta,
     m2Totales: calculations.m2Totales
   }
 
   const renovationData = {
-    calidad: data.calidad,
-    habitaciones: data.habitaciones,
-    banos: data.banos,
-    hardCosts: {
-      obra: calculations.obra,
-      materiales: calculations.calidadCoste,
-      interiorismo: calculations.interiorismo,
-      mobiliario: calculations.mobiliario,
-      terraza: calculations.terrazaCost,
-      toldo: calculations.toldoCost,
-      extras: calculations.extras,
-      total: calculations.hardCosts
-    },
-    softCosts: {
-      arquitectura: calculations.arquitectura,
-      permisoConstruccion: calculations.permisoConstruccion,
-      gastosVenta: calculations.gastosVenta,
-      costosTenencia: calculations.costosTenencia,
-      plusvalia: calculations.plusvalia,
-      total: calculations.softCosts
-    },
-    totalGastos: calculations.totalGastos
+    obra: calculations.obra,
+    calidadCoste: calculations.calidadCoste,
+    interiorismo: calculations.interiorismo,
+    mobiliario: calculations.mobiliario,
+    arquitectura: calculations.arquitectura,
+    permisoConstruccion: calculations.permisoConstruccion,
+    costosTenencia: calculations.costosTenencia,
+    plusvalia: calculations.plusvalia,
+    extras: calculations.extras,
+    m2Construidos: data.m2Construidos
   }
 
   const plData = {
-    adquisicion: {
-      compraPiso: data.precioCompra,
-      honorarioCompra: calculations.honorarioCompra,
-      inscripcionEscritura: calculations.inscripcionEscritura,
-      itp: calculations.itp,
-      total: calculations.totalAdquisicion
-    },
-    inversionReforma: {
-      hardCosts: calculations.hardCosts,
-      softCosts: calculations.softCosts,
-      intereses: calculations.interesProyecto,
-      total: calculations.totalGastos + calculations.interesProyecto
-    },
-    resultadoVenta: {
-      precioVenta: data.precioVenta,
-      honorariosVenta: calculations.honorariosVenta,
-      ventaNeta: calculations.ventaNeta,
-      inversionTotal: calculations.inversionTotal,
-      beneficioNeto: calculations.beneficioNeto
-    }
+    precioCompra: data.precioCompra,
+    honorarioCompra: calculations.honorarioCompra,
+    inscripcionEscritura: calculations.inscripcionEscritura,
+    itp: calculations.itp,
+    totalAdquisicion: calculations.totalAdquisicion,
+    hardCosts: calculations.hardCosts,
+    softCosts: calculations.softCosts,
+    totalGastos: calculations.totalGastos,
+    precioVenta: data.precioVenta,
+    honorariosVenta: calculations.honorariosVenta,
+    ventaNeta: calculations.ventaNeta,
+    beneficioNeto: calculations.beneficioNeto,
+    inversionTotal: calculations.inversionTotal,
+    margen: calculations.margen
+  }
+
+  const sensitivityData = {
+    baseCompra: data.precioCompra,
+    baseVenta: data.precioVenta,
+    totalGastos: calculations.totalGastos
   }
 
   return (
@@ -511,6 +495,8 @@ function CalculatorContent() {
             margen={calculations.margen}
             tir={calculations.tir}
             beneficioNeto={calculations.beneficioNeto}
+            mesesProyecto={calculations.mesesProyecto}
+            m2Totales={calculations.m2Totales}
           />
 
           {/* Main Content Grid */}
@@ -528,10 +514,7 @@ function CalculatorContent() {
               {isEditMode ? (
                 <EditableTransactions data={data} updateField={updateField} calculations={calculations} />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TransactionCard type="compra" {...compraData} />
-                  <TransactionCard type="venta" {...ventaData} />
-                </div>
+                <TransactionCard {...transactionData} />
               )}
 
               {/* Renovation Module */}
@@ -547,13 +530,7 @@ function CalculatorContent() {
               )}
 
               {/* Sensitivity Matrix */}
-              <SensitivityMatrix
-                precioCompra={data.precioCompra}
-                precioVenta={data.precioVenta}
-                inversionTotal={calculations.inversionTotal}
-                beneficioNeto={calculations.beneficioNeto}
-                margen={calculations.margen}
-              />
+              <SensitivityMatrix {...sensitivityData} />
             </div>
 
             {/* Right Column - P&L Summary */}
