@@ -60,16 +60,16 @@ function ComiteInversionContent() {
 
       try {
         const { data, error: fetchError } = await supabase
-          .from('projects')
+          .from('projects_v2')
           .select(`
             *,
-            commercial:commercial_id(
+            commercial:commercial_user_id(
               id,
               full_name,
               avatar_url
             )
           `)
-          .eq('status', 'evaluacion')
+          .eq('status', 'oportunidad')
           .order('created_at', { ascending: false })
 
         if (fetchError) throw fetchError
@@ -122,12 +122,12 @@ function ComiteInversionContent() {
     if (!selectedProject || !profile) return
 
     const { error } = await supabase
-      .from('projects')
+      .from('projects_v2')
       .update({
         status: 'aprobado',
-        approved_by: profile.id,
-        approved_at: new Date().toISOString(),
-        approval_notes: notes || null,
+        approval_by_user_id: profile.id,
+        approval_date: new Date().toISOString(),
+        notes: notes || null,
         updated_at: new Date().toISOString()
       })
       .eq('project_id', selectedProject.project_id)
@@ -142,11 +142,10 @@ function ComiteInversionContent() {
     if (!selectedProject || !profile) return
 
     const { error } = await supabase
-      .from('projects')
+      .from('projects_v2')
       .update({
         status: 'rechazado',
-        rejected_by: profile.id,
-        rejected_at: new Date().toISOString(),
+        rejection_date: new Date().toISOString(),
         rejection_reason: reason,
         updated_at: new Date().toISOString()
       })
