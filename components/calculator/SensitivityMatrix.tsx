@@ -14,26 +14,50 @@ export function SensitivityMatrix({
   baseVenta,
   totalGastos
 }: SensitivityMatrixProps) {
+  // Validar que los valores base sean válidos
+  if (!baseCompra || baseCompra <= 0 || !baseVenta || baseVenta <= 0) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold">Matriz de Sensibilidad</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Introduce precios de compra y venta válidos para ver el análisis de sensibilidad.
+        </p>
+      </div>
+    )
+  }
+
   // Variaciones: -10%, -5%, 0% (actual), +5%, +10%
   const variations = [-10, -5, 0, 5, 10]
 
-  // Generar precios de compra (filas)
-  const compraVariations = variations.map(pct => ({
-    pct,
-    value: Math.round(baseCompra * (1 + pct / 100))
-  }))
+  // Generar precios de compra (filas) - filtrar valores <= 0
+  const compraVariations = variations
+    .map(pct => ({
+      pct,
+      value: Math.round(baseCompra * (1 + pct / 100))
+    }))
+    .filter(item => item.value > 0)
 
-  // Generar precios de venta (columnas)
-  const ventaVariations = variations.map(pct => ({
-    pct,
-    value: Math.round(baseVenta * (1 + pct / 100))
-  }))
+  // Generar precios de venta (columnas) - filtrar valores <= 0
+  const ventaVariations = variations
+    .map(pct => ({
+      pct,
+      value: Math.round(baseVenta * (1 + pct / 100))
+    }))
+    .filter(item => item.value > 0)
 
   // Calcular margen para cada combinación
   const calculateMargin = (compra: number, venta: number) => {
+    if (venta <= 0) return -999 // Valor inválido
     const totalInversion = compra + totalGastos
     const beneficio = venta - totalInversion
     const margen = (beneficio / venta) * 100
+    // Limitar a rangos razonables para evitar valores absurdos
+    if (margen < -100 || margen > 100 || !isFinite(margen)) {
+      return margen < 0 ? -100 : 100
+    }
     return margen
   }
 
