@@ -7,7 +7,8 @@ import { DashboardLayout } from '@/components/dashboard'
 import { ProjectWithMetrics, getProjectsWithMetrics, createProject, deleteProject } from '@/lib/supabase'
 
 type ViewMode = 'grid' | 'list'
-type SortOption = 'updated' | 'name' | 'beneficio' | 'margen' | 'roi'
+type SortOption = 'updated' | 'name' | 'inversion' | 'beneficio' | 'margen' | 'roi'
+type SortDirection = 'asc' | 'desc'
 
 export default function CalculadoraPage() {
   return (
@@ -27,6 +28,7 @@ function CalculadoraContent() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('updated')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   useEffect(() => {
     loadProjects()
@@ -93,23 +95,42 @@ function CalculadoraContent() {
 
     // Ordenar
     result.sort((a, b) => {
+      let comparison = 0
       switch (sortBy) {
         case 'name':
-          return a.name.localeCompare(b.name)
+          comparison = a.name.localeCompare(b.name)
+          break
+        case 'inversion':
+          comparison = (a.metrics?.inversionTotal || 0) - (b.metrics?.inversionTotal || 0)
+          break
         case 'beneficio':
-          return (b.metrics?.beneficioNeto || 0) - (a.metrics?.beneficioNeto || 0)
+          comparison = (a.metrics?.beneficioNeto || 0) - (b.metrics?.beneficioNeto || 0)
+          break
         case 'margen':
-          return (b.metrics?.margen || 0) - (a.metrics?.margen || 0)
+          comparison = (a.metrics?.margen || 0) - (b.metrics?.margen || 0)
+          break
         case 'roi':
-          return (b.metrics?.roi || 0) - (a.metrics?.roi || 0)
+          comparison = (a.metrics?.roi || 0) - (b.metrics?.roi || 0)
+          break
         case 'updated':
         default:
-          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
       }
+      return sortDirection === 'desc' ? -comparison : comparison
     })
 
     return result
-  }, [projects, searchQuery, sortBy])
+  }, [projects, searchQuery, sortBy, sortDirection])
+
+  // Función para manejar click en columna
+  function handleColumnSort(column: SortOption) {
+    if (sortBy === column) {
+      setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')
+    } else {
+      setSortBy(column)
+      setSortDirection('desc')
+    }
+  }
 
   // Calcular totales
   const totals = useMemo(() => {
@@ -161,9 +182,29 @@ function CalculadoraContent() {
     return 'NO HACER'
   }
 
+  // Icono de ordenación
+  function SortIcon({ column }: { column: SortOption }) {
+    if (sortBy !== column) {
+      return (
+        <svg className="w-4 h-4 text-gray-300 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      )
+    }
+    return sortDirection === 'desc' ? (
+      <svg className="w-4 h-4 text-gray-700 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4 text-gray-700 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    )
+  }
+
   return (
     <DashboardLayout
-      title="Calculadora de Renovaciones"
+      title="Calculadora de Oportunidades"
       subtitle="Gestiona los análisis de rentabilidad de tus proyectos inmobiliarios"
     >
       {/* Action Bar */}
@@ -240,11 +281,12 @@ function CalculadoraContent() {
                 <span className="text-sm text-gray-500">Ordenar:</span>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  onChange={(e) => { setSortBy(e.target.value as SortOption); setSortDirection('desc'); }}
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 >
                   <option value="updated">Fecha actualización</option>
                   <option value="name">Nombre</option>
+                  <option value="inversion">Inversión</option>
                   <option value="beneficio">Beneficio</option>
                   <option value="margen">Margen</option>
                   <option value="roi">ROI</option>
@@ -473,11 +515,51 @@ function CalculadoraContent() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Proyecto</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Inversión</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beneficio</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Margen</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">ROI</th>
+                <th
+                  onClick={() => handleColumnSort('name')}
+                  className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                >
+                  <div className="flex items-center">
+                    Proyecto
+                    <SortIcon column="name" />
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleColumnSort('inversion')}
+                  className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                >
+                  <div className="flex items-center justify-end">
+                    Inversión
+                    <SortIcon column="inversion" />
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleColumnSort('beneficio')}
+                  className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                >
+                  <div className="flex items-center justify-end">
+                    Beneficio
+                    <SortIcon column="beneficio" />
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleColumnSort('margen')}
+                  className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                >
+                  <div className="flex items-center justify-end">
+                    Margen
+                    <SortIcon column="margen" />
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleColumnSort('roi')}
+                  className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                >
+                  <div className="flex items-center justify-end">
+                    ROI
+                    <SortIcon column="roi" />
+                  </div>
+                </th>
                 <th className="text-center px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Estado</th>
                 <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
