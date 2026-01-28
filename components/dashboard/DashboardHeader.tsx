@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
+import { useUserProfile } from '@/hooks'
 
 export interface BreadcrumbItem {
   label: string
@@ -18,7 +19,12 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapsed, breadcrumbs }: DashboardHeaderProps) {
   const { user, signOut } = useAuth()
+  const { profile } = useUserProfile()
   const [showUserMenu, setShowUserMenu] = useState(false)
+
+  // Priorizar avatar de user_profiles, luego de Google Auth
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url
+  const fullName = profile?.full_name || user?.user_metadata?.full_name
 
   const getInitials = (name: string | undefined, email: string | undefined) => {
     if (name) {
@@ -111,15 +117,15 @@ export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapse
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 p-1.5 pr-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            {user?.user_metadata?.avatar_url ? (
+            {avatarUrl ? (
               <img
-                src={user.user_metadata.avatar_url}
+                src={avatarUrl}
                 alt="Avatar"
-                className="w-8 h-8 rounded-full"
+                className="w-8 h-8 rounded-full object-cover"
               />
             ) : (
               <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-medium">
-                {getInitials(user?.user_metadata?.full_name, user?.email)}
+                {getInitials(fullName, user?.email)}
               </div>
             )}
             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,7 +143,7 @@ export function DashboardHeader({ onMenuClick, onToggleCollapse, sidebarCollapse
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border z-50 overflow-hidden">
                 <div className="p-3 border-b bg-gray-50">
                   <div className="font-medium text-gray-800 text-sm">
-                    {user?.user_metadata?.full_name || 'Usuario'}
+                    {fullName || 'Usuario'}
                   </div>
                   <div className="text-xs text-gray-500 truncate">
                     {user?.email}

@@ -196,9 +196,7 @@ export function DashboardSidebar({ isOpen, onClose, collapsed = false }: Sidebar
         <div className={`h-16 flex items-center border-b border-gray-200 ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
           <Link href="/" className="flex items-center gap-2">
             {collapsed ? (
-              <svg className="w-7 h-7 text-gray-900" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C8.5 2 5.5 4.5 5.5 8c0 1.5.5 2.8 1.3 3.8-.5.8-.8 1.8-.8 2.7 0 2.5 1.8 4.5 4 4.5h1v2c0 .6.4 1 1 1s1-.4 1-1v-2h2c2.2 0 4-2 4-4.5 0-1-.3-1.9-.8-2.7.8-1 1.3-2.3 1.3-3.8 0-3.5-3-6-6.5-6zm-3 12.5c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5zm6 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5zM12 4c2.5 0 4.5 1.8 4.5 4 0 1-.4 2-1 2.7-.4-.2-.8-.4-1.2-.5.4-.6.7-1.4.7-2.2 0-1.7-1.3-3-3-3s-3 1.3-3 3c0 .8.3 1.6.7 2.2-.4.1-.9.3-1.2.5-.6-.7-1-1.7-1-2.7 0-2.2 2-4 4.5-4z"/>
-              </svg>
+              <span className="text-xl font-bold text-gray-900 tracking-tight">B</span>
             ) : (
               <h1 className="text-lg font-semibold tracking-wide text-gray-900">
                 LUMIER <span className="font-normal text-gray-400">BRAIN</span>
