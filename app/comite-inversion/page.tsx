@@ -79,16 +79,10 @@ function ComiteInversionContent() {
       setError(null)
 
       try {
+        // Query simple sin relaciones para evitar errores de FK
         const { data, error: fetchError } = await supabase
           .from('projects_v2')
-          .select(`
-            *,
-            commercial:commercial_user_id(
-              id,
-              full_name,
-              avatar_url
-            )
-          `)
+          .select('*')
           .in('status', [
             'oportunidad',
             'oferta_autorizada',
@@ -99,12 +93,31 @@ function ComiteInversionContent() {
           ])
           .order('created_at', { ascending: false })
 
-        if (fetchError) throw fetchError
+        if (fetchError) {
+          console.error('Supabase error:', fetchError)
+          throw fetchError
+        }
 
-        setAllProjects(data || [])
-      } catch (err) {
+        // Si hay proyectos con commercial_user_id, obtener los datos del usuario
+        const projectsWithCommercial = await Promise.all(
+          (data || []).map(async (project) => {
+            if (project.commercial_user_id) {
+              const { data: userData } = await supabase
+                .from('user_profiles')
+                .select('id, full_name, avatar_url')
+                .eq('id', project.commercial_user_id)
+                .single()
+
+              return { ...project, commercial: userData }
+            }
+            return { ...project, commercial: null }
+          })
+        )
+
+        setAllProjects(projectsWithCommercial)
+      } catch (err: any) {
         console.error('Error fetching projects:', err)
-        setError('Error al cargar las oportunidades')
+        setError(`Error al cargar las oportunidades: ${err.message || 'Error desconocido'}`)
       } finally {
         setLoading(false)
       }
