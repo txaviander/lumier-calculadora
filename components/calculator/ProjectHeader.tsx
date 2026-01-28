@@ -129,10 +129,11 @@ export function ProjectHeader({
   ciProjectCode,
   ciRejectionReason
 }: ProjectHeaderProps) {
-  const config = statusConfig[ciStatus]
+  // Usar configuración del estado o fallback a 'not_submitted' si el estado no existe
+  const config = statusConfig[ciStatus] || statusConfig['not_submitted']
   const StatusIcon = config.icon
   const canSubmitToCI = ciStatus === 'not_submitted' && onSubmitToCI
-  const isSubmitted = ciStatus !== 'not_submitted'
+  const isSubmitted = ciStatus !== 'not_submitted' && statusConfig[ciStatus] !== undefined
 
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
