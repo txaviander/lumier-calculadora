@@ -1,3 +1,23 @@
+/**
+ * BREADCRUMB - Memoria del Proyecto
+ *
+ * 28/01/2026 - DECISIÓN CRÍTICA: NO CAMBIAR EL SISTEMA DE DATOS
+ *
+ * Este archivo DEBE usar `getProjectsWithMetrics()` que consulta la tabla `projects`.
+ * NO usar `useProjects` hook ni `projects_v2` - causó múltiples errores:
+ * - 404 en rutas de proyectos
+ * - Solo 4 proyectos visibles (datos antiguos en tabla diferente)
+ * - Delete no funcionaba
+ * - Parpadeo infinito por re-renders
+ *
+ * Ver `.claude/decisions.md` para el análisis completo.
+ *
+ * IMPORTANTE: Si necesitas mostrar proyectos del wizard (projects_v2),
+ * crea una página/ruta SEPARADA, no modifiques esta.
+ *
+ * Última modificación: 28/01/2026 - Revert a sistema original
+ */
+
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'

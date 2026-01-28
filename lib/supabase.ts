@@ -1,3 +1,27 @@
+/**
+ * BREADCRUMB - Memoria del Proyecto
+ *
+ * Este archivo contiene DOS sistemas de datos diferentes:
+ *
+ * 1. SISTEMA ANTIGUO (usado por /calculadora/page.tsx):
+ *    - Interfaces: Project, ProjectVersion, CalculatorData, ProjectWithMetrics
+ *    - Tablas: `projects`, `project_versions`
+ *    - Funciones: getProjects, createProject, deleteProject, getProjectsWithMetrics
+ *    - Campos: precioCompra, precioVenta, m2Construidos, calidad (1-5)
+ *
+ * 2. SISTEMA NUEVO (ver lib/types.ts):
+ *    - Tablas: `projects_v2`, `calculator_snapshots`
+ *    - Usado por: hooks/useProjects.ts, wizard
+ *    - Campos: purchase_price, property_size_m2, renovation_type (basica/media/integral/lujo)
+ *
+ * 28/01/2026 - NO mezclar estos sistemas. Ver `.claude/decisions.md`
+ *
+ * Las fórmulas en calculateMetricsFromData() replican el Excel de Lumier.
+ * Ver MANUAL_CALCULOS.md para documentación detallada.
+ *
+ * Última modificación: 28/01/2026 - Fórmulas verificadas contra Excel
+ */
+
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!

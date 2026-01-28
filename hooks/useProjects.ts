@@ -1,3 +1,24 @@
+/**
+ * BREADCRUMB - Memoria del Proyecto
+ *
+ * Este hook usa el SISTEMA NUEVO (projects_v2, calculator_snapshots).
+ * NO es compatible con el sistema antiguo usado en /calculadora/page.tsx.
+ *
+ * 28/01/2026 - ANTI-PATTERN DETECTADO Y SOLUCIONADO:
+ * El parámetro `filters = {}` creaba un objeto nuevo en cada render,
+ * causando re-fetches infinitos y parpadeo en la UI.
+ *
+ * Solución correcta (si se necesita):
+ *   const EMPTY_FILTERS = {}
+ *   function useProjects({ filters = EMPTY_FILTERS }) { ... }
+ *   const filtersKey = useMemo(() => JSON.stringify(filters), [filters])
+ *
+ * IMPORTANTE: Este hook NO debe usarse en /calculadora/page.tsx
+ * Ver `.claude/decisions.md` para el análisis completo.
+ *
+ * Última modificación: 28/01/2026
+ */
+
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'

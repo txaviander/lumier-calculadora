@@ -1,3 +1,25 @@
+/**
+ * BREADCRUMB - Memoria del Proyecto
+ *
+ * 28/01/2026 - BUG DEL SPINNER INFINITO RESUELTO
+ *
+ * Este componente tenía un bug donde se quedaba en spinner infinito
+ * cuando algunos campos del formulario estaban vacíos/undefined.
+ *
+ * Solución implementada:
+ * 1. Valores por defecto para campos numéricos: (calc.value || 0)
+ * 2. Validación de inputs antes de cálculos
+ * 3. Manejo de edge cases en fórmulas
+ *
+ * Las fórmulas aquí deben coincidir EXACTAMENTE con el Excel de Lumier.
+ * Ver MANUAL_CALCULOS.md para la documentación de cada fórmula.
+ *
+ * IMPORTANTE: Si modificas cálculos, actualiza también lib/supabase.ts
+ * y las funciones RPC en Supabase.
+ *
+ * Última modificación: 28/01/2026 - Fix spinner + fórmulas Excel
+ */
+
 'use client'
 
 import { useEffect } from 'react'
