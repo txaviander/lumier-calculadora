@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
+import { BrainIcon } from '@/components/icons'
 
 interface SidebarProps {
   isOpen: boolean
@@ -196,7 +197,7 @@ export function DashboardSidebar({ isOpen, onClose, collapsed = false }: Sidebar
         <div className={`h-16 flex items-center border-b border-gray-200 ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
           <Link href="/" className="flex items-center gap-2">
             {collapsed ? (
-              <span className="text-xl font-bold text-gray-900 tracking-tight">B</span>
+              <BrainIcon className="w-7 h-7 text-gray-900" />
             ) : (
               <h1 className="text-lg font-semibold tracking-wide text-gray-900">
                 LUMIER <span className="font-normal text-gray-400">BRAIN</span>
