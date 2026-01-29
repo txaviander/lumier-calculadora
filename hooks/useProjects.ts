@@ -14,7 +14,7 @@
  *   const filtersKey = useMemo(() => JSON.stringify(filters), [filters])
  *
  * IMPORTANTE: Este hook NO debe usarse en /calculadora/page.tsx
- * Ver `.claude/decisions.md` para el análisis completo.
+ * Ver `claude-context/decisions.md` para el análisis completo.
  *
  * Última modificación: 28/01/2026
  */

@@ -10,7 +10,7 @@
  * - Delete no funcionaba
  * - Parpadeo infinito por re-renders
  *
- * Ver `.claude/decisions.md` para el análisis completo.
+ * Ver `claude-context/decisions.md` para el análisis completo.
  *
  * IMPORTANTE: Si necesitas mostrar proyectos del wizard (projects_v2),
  * crea una página/ruta SEPARADA, no modifiques esta.

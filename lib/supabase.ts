@@ -14,7 +14,7 @@
  *    - Usado por: hooks/useProjects.ts, wizard
  *    - Campos: purchase_price, property_size_m2, renovation_type (basica/media/integral/lujo)
  *
- * 28/01/2026 - NO mezclar estos sistemas. Ver `.claude/decisions.md`
+ * 28/01/2026 - NO mezclar estos sistemas. Ver `claude-context/decisions.md`
  *
  * Las fórmulas en calculateMetricsFromData() replican el Excel de Lumier.
  * Ver MANUAL_CALCULOS.md para documentación detallada.
